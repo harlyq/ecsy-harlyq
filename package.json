@@ -1,0 +1,24 @@
+{
+  "name": "ecsy-harlyq",
+  "version": "0.0.1",
+  "description": "custom ecsy components and systems",
+  "main": "index.js",
+  "module": "build/ecsy-harlyq.module.js",
+  "type": "module",
+  "files": ["build", "src"],
+  "scripts": {
+    "build": "rollup index.js -f es -o build/ecsy-harlyq.module.js"
+  },
+  "keywords": [
+    "ecsy"
+  ],
+  "author": "harlyq",
+  "license": "MIT",
+  "devDependencies": {
+    "ecsy": "^0.2.3",
+    "ecsy-three": "0.0.3",
+    "three": "^0.115.0",
+    "webxr-polyfill": "^2.0.2"
+  },
+  "dependencies": {}
+}
