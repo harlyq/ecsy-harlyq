@@ -5,10 +5,9 @@ import * as RND from "./pseudo-random.js"
 const error = console.error
 const FRAME_STYLES = ["sequence", "randomsequence", "random"]
 const DEG2RAD = THREE.MathUtils.DEG2RAD
-const parseValue = (x, self, ...args) => typeof x === "function" ? x(self, ...args) : x
 
-export function createParticleEmitter(options, matrixWorld, model3D = undefined, time = 0) {
-  options = {
+export function createParticleEmitter(options, matrixWorld, time = 0) {
+  const config = {
     particleMesh: null,
     enabled: true,
     count: -1, // use all available particles
@@ -42,27 +41,28 @@ export function createParticleEmitter(options, matrixWorld, model3D = undefined,
     velocityScale: 0,
     velocityScaleMin: .1,
     velocityScaleMax: 1,
-    ...options
   }
 
-  const mesh = options.particleMesh
+  Object.defineProperties(config, Object.getOwnPropertyDescriptors(options)) // preserves getters
+
+  const mesh = config.particleMesh
   const geometry = mesh.geometry
   const startTime = time
   const startIndex = mesh.userData.nextIndex
-  const meshParticleCount = mesh.userData.options.particleCount
-  const count = parseValue(options.count, options)
-  const burst = parseValue(options.burst, options)
-  const lifeTime = parseValue(options.lifeTime, options)
-  const seed = parseValue(options.seed, options)
+  const meshParticleCount = mesh.userData.meshConfig.particleCount
+  const count = config.count
+  const burst = config.burst
+  const lifeTime = config.lifeTime
+  const seed = config.seed
   const rndFn = RND.createPseudoRandom( seed )
 
-  let particleRepeatTime = parseValue(options.repeatTime, options)
-  let textureFrame = parseValue(options.textureFrame, options)
+  let particleRepeatTime = config.repeatTime
+  let textureFrame = config.textureFrame
 
   const effectRepeatTime = Math.max( particleRepeatTime, Array.isArray(lifeTime) ? Math.max(...lifeTime) : lifeTime )
-  textureFrame = options.textureFrame ? options.textureFrame : mesh.userData.options.textureFrame
+  textureFrame = config.textureFrame ? config.textureFrame : mesh.userData.meshConfig.textureFrame
 
-  if (options.count > 0 && startIndex + options.count > meshParticleCount) {
+  if (config.count > 0 && startIndex + config.count > meshParticleCount) {
     error(`run out of particles, increase the particleCount for this SimpleParticleMesh`)
   }
 
@@ -72,16 +72,16 @@ export function createParticleEmitter(options, matrixWorld, model3D = undefined,
   const endIndex = Math.min(meshParticleCount, startIndex + numParticles)
 
   const spawnDelta = effectRepeatTime/numParticles*(1 - burst)
-  const vertices = model3D && typeof options.offset === "function" && model3D.isMesh ? calcSpawnOffsetsFromGeometry(model3D.geometry) : undefined
+  // const vertices = model3D && typeof config.offset === "function" && model3D.isMesh ? calcSpawnOffsetsFromGeometry(model3D.geometry) : undefined
 
   for (let i = startIndex; i < endIndex; i++) {
     const spawnTime = time + (i - startIndex)*spawnDelta
-    spawn(geometry, matrixWorld, options, i, spawnTime, lifeTime, particleRepeatTime, vertices, textureFrame, seed, rndFn)
+    spawn(geometry, matrixWorld, config, i, spawnTime, lifeTime, particleRepeatTime, textureFrame, seed, rndFn)
   }
 
   ParticleMesh.needsUpdate(geometry)
 
-  loadTexturePackerJSON(mesh, options, startIndex, endIndex)
+  loadTexturePackerJSON(mesh, config, startIndex, endIndex)
 
   return {startTime, startIndex, endIndex, mesh}
 }
@@ -158,35 +158,35 @@ export function setEmitterMatrixWorld(emitter, matrixWorld, time, deltaTime) {
 }
 
 
-function spawn(geometry, matrixWorld, options, index, spawnTime, lifeTime, repeatTime, vertices, textureFrame, seed, rndFn) {
-  const offset = parseValue(options.offset, options, vertices)
-  const velocity = parseValue(options.velocity, options)
-  const acceleration = parseValue(options.acceleration, options)
-  const radialVelocity = parseValue(options.radialVelocity, options)
-  const radialAcceleration = parseValue(options.radialAcceleration, options)
-  const angularVelocity = parseValue(options.angularVelocity, options)
-  const angularAcceleration = parseValue(options.angularAcceleration, options)
-  const orbitalVelocity = parseValue(options.orbitalVelocity, options)
-  const orbitalAcceleration = parseValue(options.orbitalAcceleration, options)
-  const worldAcceleration = parseValue(options.worldAcceleration, options)
+function spawn(geometry, matrixWorld, config, index, spawnTime, lifeTime, repeatTime, textureFrame, seed, rndFn) {
+  const offset = config.offset
+  const velocity = config.velocity
+  const acceleration = config.acceleration
+  const radialVelocity = config.radialVelocity
+  const radialAcceleration = config.radialAcceleration
+  const angularVelocity = config.angularVelocity
+  const angularAcceleration = config.angularAcceleration
+  const orbitalVelocity = config.orbitalVelocity
+  const orbitalAcceleration = config.orbitalAcceleration
+  const worldAcceleration = config.worldAcceleration
 
   const particleLifeTime = Array.isArray(lifeTime) ? rndFn()*(lifeTime[1] - lifeTime[0]) + lifeTime[0] : lifeTime
-  const scales = parseValue(options.scales, options)
-  const orientations = parseValue(options.orientations, options).map(o => o*DEG2RAD)
-  const colors = parseValue(options.colors, options)
-  const opacities = parseValue(options.opacities, options)
-  const frames = parseValue(options.frames, options)
-  const atlas = parseValue(options.atlas, options)
-  const brownianSpeed = parseValue(options.brownianSpeed, options)
-  const brownianScale = parseValue(options.brownianScale, options)
-  const worldUp = parseValue(options.worldUp, options) ? 1 : 0
-  const velocityScale = parseValue(options.velocityScale, options)
-  const velocityScaleMin = parseValue(options.velocityScaleMin, options)
-  const velocityScaleMax = parseValue(options.velocityScaleMax, options)
+  const scales = config.scales
+  const orientations = config.orientations.map(o => o*DEG2RAD)
+  const colors = config.colors
+  const opacities = config.opacities
+  const frames = config.frames
+  const atlas = config.atlas
+  const brownianSpeed = config.brownianSpeed
+  const brownianScale = config.brownianScale
+  const worldUp = config.worldUp ? 1 : 0
+  const velocityScale = config.velocityScale
+  const velocityScaleMin = config.velocityScaleMin
+  const velocityScaleMax = config.velocityScaleMax
 
   const startFrame = frames.length > 0 ? frames[0] : 0
   const endFrame = frames.length > 1 ? frames[1] : frames.length > 0 ? frames[0] : textureFrame.cols*textureFrame.rows - 1
-  const frameStyleIndex = FRAME_STYLES.indexOf(options.frameStyle) >= 0 ? FRAME_STYLES.indexOf(options.frameStyle) : 0
+  const frameStyleIndex = FRAME_STYLES.indexOf(config.frameStyle) >= 0 ? FRAME_STYLES.indexOf(config.frameStyle) : 0
   const atlasIndex = typeof atlas === 'number' ? atlas : 0
 
   ParticleMesh.setMatrixAt(geometry, index, matrixWorld)
@@ -240,8 +240,8 @@ function calcSpawnOffsetsFromGeometry(geometry) {
   return Float32Array.from(worldPositions)
 }
 
-function loadTexturePackerJSON(mesh, options, startIndex, endIndex) {
-  const jsonFilename = mesh.userData.options.texture.replace(/\.[^\.]+$/, ".json")
+function loadTexturePackerJSON(mesh, config, startIndex, endIndex) {
+  const jsonFilename = mesh.userData.meshConfig.texture.replace(/\.[^\.]+$/, ".json")
   fetch(jsonFilename)
     .then((response) => {
       return response.json()
@@ -249,13 +249,13 @@ function loadTexturePackerJSON(mesh, options, startIndex, endIndex) {
     .then((atlasJSON) => {
       ParticleMesh.setTextureAtlas(mesh.material, atlasJSON)
 
-      if (typeof options.atlas === 'string') {
+      if (typeof config.atlas === 'string') {
         const atlasIndex = Array.isArray(atlasJSON.frames)
-          ? atlasJSON.frames.findIndex(frame => frame.filename === options.atlas)
-          : Object.keys(atlasJSON.frames).findIndex(filename => filename === options.atlas)
+          ? atlasJSON.frames.findIndex(frame => frame.filename === config.atlas)
+          : Object.keys(atlasJSON.frames).findIndex(filename => filename === config.atlas)
 
         if (atlasIndex < 0) {
-          error(`unable to find atlas entry '${options.atlas}'`)
+          error(`unable to find atlas entry '${config.atlas}'`)
         }
 
         for (let i = startIndex; i < endIndex; i++) {

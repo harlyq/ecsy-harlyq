@@ -6,7 +6,7 @@ WHITE_TEXTURE.needsUpdate = true
 const textureLoader = new THREE.TextureLoader()
 
 export function createParticleMesh(options) {
-  options = {
+  const config = {
     particleCount: 1000,
     texture: '',
     textureFrame: {cols:1, rows:1},
@@ -29,12 +29,13 @@ export function createParticleMesh(options) {
     useFramesOrOrientation: true,
     onTextureLoaded: undefined,
     onTextureJSONLoaded: undefined,
-    ...options,
   }
+
+  Object.defineProperties(config, Object.getOwnPropertyDescriptors(options)) // preserves getters
 
   const geometry = new THREE.BufferGeometry()
 
-  updateGeometry(geometry, options.particleCount)
+  updateGeometry(geometry, config.particleCount)
 
   const material = new THREE.RawShaderMaterial({
     uniforms: {
@@ -56,13 +57,13 @@ export function createParticleMesh(options) {
     defines: {},
   })
 
-  updateMaterial(material, options)
+  updateMaterial(material, config)
 
   const mesh = new THREE.Points(geometry, material)
   mesh.frustumCulled = false
   mesh.userData = mesh.userData || {}
   mesh.userData.nextIndex = 0
-  mesh.userData.options = options
+  mesh.userData.meshConfig = config
 
   // const startTime = 0 //performance.now()
   // mesh.onBeforeRender = () => {
@@ -100,40 +101,40 @@ export function updateGeometry(geometry, particleCount) {
   }
 }
 
-export function updateMaterial(material, options) {
-  material.uniforms.particleSize.value = options.particleSize
+export function updateMaterial(material, config) {
+  material.uniforms.particleSize.value = config.particleSize
   material.uniforms.textureAtlas.value[0] = 0 // 0,0 unpacked uvs
   material.uniforms.textureAtlas.value[1] = 0.50012207031 // 1.,1. unpacked uvs
 
-  material.transparent = options.transparent
-  material.blending = options.blending
-  material.fog = options.fog
-  material.depthWrite = options.depthWrite
-  material.depthTest = options.depthTest
+  material.transparent = config.transparent
+  material.blending = config.blending
+  material.fog = config.fog
+  material.depthWrite = config.depthWrite
+  material.depthTest = config.depthTest
 
   const defines = {}
-  if (options.useAngularMotion) defines.USE_ANGULAR_MOTION = true
-  if (options.useRadialMotion) defines.USE_RADIAL_MOTION = true
-  if (options.useOrbitalMotion) defines.USE_ORBITAL_MOTION = true
-  if (options.useLinearMotion) defines.USE_LINEAR_MOTION = true
-  if (options.useWorldMotion) defines.USE_WORLD_MOTION = true
-  if (options.useBrownianMotion) defines.USE_BROWNIAN_MOTION = true
-  if (options.useVelocityScale) defines.USE_VELOCITY_SCALE = true
-  if (options.useFramesOrOrientation) defines.USE_FRAMES_OR_ORIENTATION = true
-  if (options.usePerspective) defines.USE_PERSPECTIVE = true
-  if (options.fog) defines.USE_FOG = true
-  if (options.alphaTest) defines.ALPHATEST = options.alphaTest
+  if (config.useAngularMotion) defines.USE_ANGULAR_MOTION = true
+  if (config.useRadialMotion) defines.USE_RADIAL_MOTION = true
+  if (config.useOrbitalMotion) defines.USE_ORBITAL_MOTION = true
+  if (config.useLinearMotion) defines.USE_LINEAR_MOTION = true
+  if (config.useWorldMotion) defines.USE_WORLD_MOTION = true
+  if (config.useBrownianMotion) defines.USE_BROWNIAN_MOTION = true
+  if (config.useVelocityScale) defines.USE_VELOCITY_SCALE = true
+  if (config.useFramesOrOrientation) defines.USE_FRAMES_OR_ORIENTATION = true
+  if (config.usePerspective) defines.USE_PERSPECTIVE = true
+  if (config.fog) defines.USE_FOG = true
+  if (config.alphaTest) defines.ALPHATEST = config.alphaTest
   defines.ATLAS_SIZE = 1
   
   material.defines = defines
   material.uniforms.map.value = WHITE_TEXTURE
 
-  if (options.texture) {
-    if (options.texture instanceof THREE.Texture) {
-      material.uniform.map.value = options.texture
+  if (config.texture) {
+    if (config.texture instanceof THREE.Texture) {
+      material.uniform.map.value = config.texture
     } else {
       textureLoader.load(
-        options.texture, 
+        config.texture, 
         (texture) => {
           material.uniforms.map.value = texture
         }, 

@@ -97,9 +97,9 @@ world.createEntity()
     textureFrame: {cols:2, rows:2},
     count: 50,
     worldUp: true,
-    offset: () => ECSYHQ.randomBoxOffset(.5, .5, 0),
-    colors: () => ECSYHQ.randomize([{r:1,g:0,b:0}], [{r:1,g:1,b:0}]),
-    scales: () => ECSYHQ.randomize([10], [5]),
+    get offset() { return ECSYHQ.randomBoxOffset(.5, .5, 0) },
+    get colors() { return ECSYHQ.randomize([{r:1,g:0,b:0}], [{r:1,g:1,b:0}]) },
+    get scales() { return ECSYHQ.randomize([10], [5]) },
     frameStyle: "random",
   })
   .addComponent(ECSY3.Transform, { position: {x:0, y:0, z:-4}, rotation: {x:0, y:0, z:0} })
@@ -130,8 +130,8 @@ world.createEntity()
     count: 20,
     lifeTime: [.3, .8],
     repeatTime: 3.9,
-    offset: () => ECSYHQ.randomSphereOffset(.03),
-    scales: () => ECSYHQ.randomize([15], [20]),
+    get offset() { return  ECSYHQ.randomSphereOffset(.03) },
+    get scales() { return ECSYHQ.randomize([15], [20]) },
   })
   .addComponent(ECSY3.Transform, { position: {x:1, y:0, z:-4}, rotation: {x:0, y:0, z:0} })
   .addComponent(ECSY3.Parent, { value: scene })
@@ -144,7 +144,7 @@ world.createEntity()
     count: 6,
     lifeTime: [1,2],
     repeatTime: 8,
-    offset: () => ECSYHQ.randomCubeOffset(.2),
+    get offset() { return ECSYHQ.randomCubeOffset(.2) },
     scales: [20],
   })
   .addComponent(ECSY3.Transform, { position: {x:2, y:0, z:-4}, rotation: {x:0, y:0, z:0} })
@@ -156,7 +156,7 @@ world.createEntity()
     atlas: 'blob.png',
     count: 200,
     lifeTime: 5,
-    offset: () => ECSYHQ.randomSphereOffset(.25),
+    get offset() { return ECSYHQ.randomSphereOffset(.25) },
     colors: [{r:1,g:0,b:0}],
     angularVelocity: {x:160, y:0, z:0},
   })
@@ -169,7 +169,7 @@ world.createEntity()
     atlas: 'blob.png',
     count: 10,
     lifeTime: 9,
-    offset: () => ECSYHQ.randomSphereOffset(.25),
+    get offset() { return ECSYHQ.randomSphereOffset(.25) },
     colors: [new THREE.Color("purple")],
     orbitalVelocity: 120,
     scales: [2],
@@ -194,7 +194,7 @@ world.createEntity()
   .addComponent(ECSYHQ.SimpleParticleEmitter, {
     particleMesh: sharedParticleMesh,
     atlas: 'blob.png',
-    offset: () => ECSYHQ.randomEllipsoidOffset(.01,.01,0),
+    get offset() { return ECSYHQ.randomEllipsoidOffset(.01,.01,0) },
     count: 400,
     lifeTime: [1.5,2],
     repeatTime: 3,
@@ -209,7 +209,7 @@ world.createEntity()
   .addComponent(ECSYHQ.SimpleParticleEmitter, {
     particleMesh: sharedParticleMesh,
     atlas: 'blob.png',
-    offset: () => ECSYHQ.randomCubeOffset(0.5),
+    get offset() { return ECSYHQ.randomCubeOffset(0.5) },
     count: 20,
     lifeTime: 500,
     colors: [new THREE.Color("yellow")],
@@ -273,7 +273,7 @@ world.createEntity()
     count: 20,
     lifeTime: 6,
     scales: [5],
-    offset: () => ECSYHQ.randomSphereOffset(.25),
+    get offset() { return ECSYHQ.randomSphereOffset(.25) },
     orbitalVelocity: 120,
     velocityScale: 2,
     velocityScaleMin: .05,
@@ -291,11 +291,11 @@ world.createEntity()
     repeatTime: 2,
     scales: [2],
     // @ts-ignore
-    offset: () => ECSYHQ.randomBoxOffset(.3, 0, .3),
-    velocity: () => ECSYHQ.randomize({ x:-.3, y:-2, z:.1 }, { x:-.2, y:-1.5, z:.1 }),
+    get offset() { return ECSYHQ.randomBoxOffset(.3, 0, .3) },
+    get velocity() { return ECSYHQ.randomize({ x:-.3, y:-2, z:.1 }, { x:-.2, y:-1.5, z:.1 }) },
     velocityScale: 1,
     velocityScaleMax: 3,
-    colors: () => ECSYHQ.randomize([{r:0, g:.1, b:.5}], [{r:0, g:.2, b:.4}]),
+    get colors() { return ECSYHQ.randomize([{r:0, g:.1, b:.5}], [{r:0, g:.2, b:.4}]) },
   })
   .addComponent(ECSY3.Transform, { position: {x: 2, y:1.5, z:-4}, rotation: {x:0, y:0, z:0} })
   .addComponent(ECSY3.Parent, { value: scene })
@@ -308,9 +308,9 @@ world.createEntity()
     count: 200,
     lifeTime: .1,
     repeatTime: 2,
-    offset: () => ECSYHQ.randomBoxOffset(.3, 0, .3),
-    velocity: () => ECSYHQ.randomize({ x:-1, y:1, z:1 }, { x:1, y:.8, z:-1 }),
-    colors: () => ECSYHQ.randomize([{r:0, g:.2, b:.6}], [{r:0, g:.1, b:.4}]),
+    get offset() { return ECSYHQ.randomBoxOffset(.3, 0, .3) },
+    get velocity() { return ECSYHQ.randomize({ x:-1, y:1, z:1 }, { x:1, y:.8, z:-1 }) },
+    get colors() { return ECSYHQ.randomize([{r:0, g:.2, b:.6}], [{r:0, g:.1, b:.4}]) },
     worldAcceleration: {x:0,y:-10,z:0},
   })
   .addComponent(ECSY3.Transform, { position: {x: 1.9, y:.7, z:-4}, rotation: {x:0, y:0, z:0} })
@@ -323,13 +323,13 @@ world.createEntity()
     count: 100,
     lifeTime: 5,
     repeatTime: 10,
-    offset: () => ECSYHQ.randomBoxOffset(.3, .1, .3),
-    velocity: () => ECSYHQ.randomize({ x:.03, y:.02, z:.03 }, { x:-.03, y:0, z:-.03 }),
-    colors: () => { let x = Math.random(); return x > .7 ? [{r:.8, g:.8, b:.8}] : x > .2 ? [{r:.9, g: .9, b: .9}] : [{r: 1, g: 1, b: 1}] },
+    get offset() { return ECSYHQ.randomBoxOffset(.3, .1, .3) },
+    get velocity() { return ECSYHQ.randomize({ x:.03, y:.02, z:.03 }, { x:-.03, y:0, z:-.03 }) },
+    get colors() { let x = Math.random(); return x > .7 ? [{r:.8, g:.8, b:.8}] : x > .2 ? [{r:.9, g: .9, b: .9}] : [{r: 1, g: 1, b: 1}] },
     opacities: [.5,1,0],
     worldUp: true,
-    scales: () => ECSYHQ.randomize([10],[15]),
-    orientations: () => [~~(Math.random()*4)*90],
+    get scales() { return ECSYHQ.randomize([10],[15]) },
+    get orientations() { return [~~(Math.random()*4)*90] },
   })
   .addComponent(ECSY3.Transform, { position: {x: 3, y:1, z:-4}, rotation: {x:0, y:0, z:0} })
   .addComponent(ECSY3.Parent, { value: scene })

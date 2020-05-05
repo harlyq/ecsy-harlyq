@@ -56,6 +56,10 @@ export class SimpleParticleEmitter extends ECSY.Component {
     this.brownianSpeed = 0
     this.brownianScale = 0
   }
+
+  copy(src) {
+    Object.defineProperties(this, Object.getOwnPropertyDescriptors(src)) // preserves getters
+  }
 }
 
 export class SimpleParticleSystem extends ECSY.System {
@@ -64,14 +68,13 @@ export class SimpleParticleSystem extends ECSY.System {
 
       const emitter = entity.getComponent(SimpleParticleEmitter)
       const object3D = entity.getComponent(ECSY3.Object3D)
-      const model3D = object3D ? object3D["value"] : undefined
 
       const matrixWorld = calcMatrixWorld(entity)
       if (!emitter.useEntityRotation) {
         clearMatrixRotation(matrixWorld)
       }
 
-      const emitter3D = ParticleEmitter.createParticleEmitter(emitter, matrixWorld, model3D, time)
+      const emitter3D = ParticleEmitter.createParticleEmitter(emitter, matrixWorld, time)
       entity.addComponent(SimpleParticleEmitterState, {
         emitter3D,
         useEntityRotation: emitter.useEntityRotation,
