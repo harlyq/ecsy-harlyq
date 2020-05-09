@@ -11,6 +11,7 @@ export function createParticleMesh(options) {
     texture: '',
     textureFrame: {cols:1, rows:1},
     style: 'particle',
+    mesh: null,
     particleSize: 10,
     transparent: false,
     alphaTest: 0,
@@ -27,15 +28,14 @@ export function createParticleMesh(options) {
     useBrownianMotion: false,
     useVelocityScale: false,
     useFramesOrOrientation: true,
-    onTextureLoaded: undefined,
-    onTextureJSONLoaded: undefined,
   }
 
   Object.defineProperties(config, Object.getOwnPropertyDescriptors(options)) // preserves getters
 
-  const geometry = new THREE.BufferGeometry()
+  const isMesh = config.style === 'mesh'
+  const geometry = isMesh ? new THREE.InstancedBufferGeometry().copy(config.mesh.geometry) : new THREE.BufferGeometry()
 
-  updateGeometry(geometry, config.particleCount)
+  updateGeometry(geometry, config)
 
   const material = new THREE.RawShaderMaterial({
     uniforms: {
@@ -59,41 +59,77 @@ export function createParticleMesh(options) {
 
   updateMaterial(material, config)
 
-  const mesh = new THREE.Points(geometry, material)
+  const mesh = isMesh ? new THREE.Mesh(geometry, material) : new THREE.Points(geometry, material)
   mesh.frustumCulled = false
   mesh.userData = mesh.userData || {}
   mesh.userData.nextIndex = 0
   mesh.userData.meshConfig = config
 
-  // const startTime = 0 //performance.now()
-  // mesh.onBeforeRender = () => {
-  //   material.uniforms.t.value = (performance.now() - startTime)/1000
-  // }
-
   return mesh
 }
 
-export function updateGeometry(geometry, particleCount) {
+export function updateGeometry(geometry, config) {
+  const particleCount = config.particleCount
   const NUM_KEYFRAMES = 3
 
-  // Ideally we'd call this "offset", but some threejs function assume at least one attribute called "position" with 3 floats
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(particleCount*3), 3))
+  const offsets = new Float32Array(particleCount*3)
+  const row1s = new Float32Array(particleCount*4)
+  const row2s = new Float32Array(particleCount*4)
+  const row3s = new Float32Array(particleCount*4)
+  const scales = new Float32Array(particleCount*NUM_KEYFRAMES)
+  const orientations = new Float32Array(particleCount*(NUM_KEYFRAMES + 1)) // orientation keyframes + screen up
+  const colors = new Float32Array(particleCount*NUM_KEYFRAMES) // rgb is packed into a single float
+  const opacities = new Float32Array(particleCount*NUM_KEYFRAMES).fill(1)
+  const frameInfos = new Float32Array(particleCount*2)
+  const timings = new Float32Array(particleCount*4)
 
-  geometry.setAttribute("row1", new THREE.Float32BufferAttribute(new Float32Array(particleCount*4), 4))
-  geometry.setAttribute("row2", new THREE.Float32BufferAttribute(new Float32Array(particleCount*4), 4))
-  geometry.setAttribute("row3", new THREE.Float32BufferAttribute(new Float32Array(particleCount*4), 4))
-  geometry.setAttribute("scales", new THREE.Float32BufferAttribute(new Float32Array(particleCount*NUM_KEYFRAMES), NUM_KEYFRAMES))
-  geometry.setAttribute("orientations", new THREE.Float32BufferAttribute(new Float32Array(particleCount*(NUM_KEYFRAMES + 1)), (NUM_KEYFRAMES + 1))) // orientation keyframes + screen up
-  geometry.setAttribute("colors", new THREE.Float32BufferAttribute(new Float32Array(particleCount*NUM_KEYFRAMES), NUM_KEYFRAMES)) // rgb is packed into a single float
-  geometry.setAttribute("opacities", new THREE.Float32BufferAttribute(new Float32Array(particleCount*NUM_KEYFRAMES).fill(1), NUM_KEYFRAMES))
-  geometry.setAttribute("frameinfo", new THREE.Float32BufferAttribute(new Float32Array(particleCount*2), 2))
-  geometry.setAttribute("timings", new THREE.Float32BufferAttribute(new Float32Array(particleCount*4), 4))
-  geometry.setAttribute("velocity", new THREE.Float32BufferAttribute(new Float32Array(particleCount*4), 4)) // linearVelocity (xyz) + radialVelocity (w)
-  geometry.setAttribute("acceleration", new THREE.Float32BufferAttribute(new Float32Array(particleCount*4), 4)) // linearAcceleration (xyz) + radialAcceleration (w)
-  geometry.setAttribute("angularvelocity", new THREE.Float32BufferAttribute(new Float32Array(particleCount*4), 4)) // angularVelocity (xyz) + orbitalVelocity (w)
-  geometry.setAttribute("angularacceleration", new THREE.Float32BufferAttribute(new Float32Array(particleCount*4), 4)) // angularAcceleration (xyz) + orbitalAcceleration (w)
-  geometry.setAttribute("worldacceleration", new THREE.Float32BufferAttribute(new Float32Array(particleCount*4), 4)) // worldAcceleration (xyz) + brownian (w)
-  geometry.setAttribute("velocityscale", new THREE.Float32BufferAttribute(new Float32Array(particleCount*3), 3))
+  const isInstancedBufferGeometry = geometry instanceof THREE.InstancedBufferGeometry
+  const bufferFn = isInstancedBufferGeometry ? THREE.InstancedBufferAttribute : THREE.Float32BufferAttribute
+
+  if (!isInstancedBufferGeometry) {
+    // this.renderBufferDirect() in threejs assumes an attribute called *position* and uses the attribute's *count* to determine
+    // the number of particles to draw!
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(particleCount), 1))
+  }
+
+  geometry.setAttribute("row1", new bufferFn(row1s, row1s.length/particleCount))
+  geometry.setAttribute("row2", new bufferFn(row2s, row2s.length/particleCount))
+  geometry.setAttribute("row3", new bufferFn(row3s, row3s.length/particleCount))
+  geometry.setAttribute("offset", new bufferFn(offsets, offsets.length/particleCount))
+  geometry.setAttribute("scales", new bufferFn(scales, scales.length/particleCount))
+  geometry.setAttribute("orientations", new bufferFn(orientations, orientations.length/particleCount))
+  geometry.setAttribute("colors", new bufferFn(colors, colors.length/particleCount)) 
+  geometry.setAttribute("opacities", new bufferFn(opacities, opacities.length/particleCount))
+  geometry.setAttribute("frameinfo", new bufferFn(frameInfos, frameInfos.length/particleCount))
+  geometry.setAttribute("timings", new bufferFn(timings, timings.length/particleCount))
+
+  if (config.useLinearMotion || config.useRadialMotion) {
+    const velocities = new Float32Array(particleCount*4) // linearVelocity (xyz) + radialVelocity (w)
+    const accelerations = new Float32Array(particleCount*4) // linearAcceleration (xyz) + radialAcceleration (w)
+    geometry.setAttribute("velocity", new bufferFn(velocities, velocities.length/particleCount))
+    geometry.setAttribute("acceleration", new bufferFn(accelerations, accelerations.length/particleCount))
+  }
+
+  if (config.useAngularMotion || config.useOrbitalMotion) {
+    const angularVelocities = new Float32Array(particleCount*4) // angularVelocity (xyz) + orbitalVelocity (w)
+    const angularAccelerations = new Float32Array(particleCount*4) // angularAcceleration (xyz) + orbitalAcceleration (w)
+    geometry.setAttribute("angularvelocity", new bufferFn(angularVelocities, angularVelocities.length/particleCount))
+    geometry.setAttribute("angularacceleration", new bufferFn(angularAccelerations, angularAccelerations.length/particleCount))
+  }
+
+  if (config.useWorldMotion || config.useBrownianMotion) {
+    const worldAccelerations = new Float32Array(particleCount*4) // worldAcceleration (xyz) + brownian (w)
+    geometry.setAttribute("worldacceleration", new bufferFn(worldAccelerations, worldAccelerations.length/particleCount))
+  }
+
+  if (config.useVelocityScale) {
+    const velocityScales = new Float32Array(particleCount*3)
+    geometry.setAttribute("velocityscale", new bufferFn(velocityScales, velocityScales.length/particleCount))
+  }
+
+  if ('maxInstancedCount' in geometry) {
+    geometry.maxInstancedCount = particleCount
+  }
 
   const identity = new THREE.Matrix4()
   for (let i = 0; i < particleCount; i++) {
@@ -112,6 +148,7 @@ export function updateMaterial(material, config) {
   material.depthWrite = config.depthWrite
   material.depthTest = config.depthTest
 
+  const style = config.style.toLowerCase()
   const defines = {}
   if (config.useAngularMotion) defines.USE_ANGULAR_MOTION = true
   if (config.useRadialMotion) defines.USE_RADIAL_MOTION = true
@@ -124,6 +161,8 @@ export function updateMaterial(material, config) {
   if (config.usePerspective) defines.USE_PERSPECTIVE = true
   if (config.fog) defines.USE_FOG = true
   if (config.alphaTest) defines.ALPHATEST = config.alphaTest
+  if (style === 'mesh') defines.USE_MESH = true
+  if (style === 'ribbon') defines.USE_RIBBON = true
   defines.ATLAS_SIZE = 1
   
   material.defines = defines
@@ -192,8 +231,8 @@ export function setMatrixAt(geometry, i, mat4) {
   row3.setXYZW(i, m[2], m[6], m[10], m[14])
 }
 
-export function setPositionAt(geometry, i, x, y, z) {
-  const position = geometry.getAttribute("position")
+export function setOffsetAt(geometry, i, x, y, z) {
+  const offset = geometry.getAttribute("offset")
   if (Array.isArray(x)) {
     z = x[2]
     y = x[1]
@@ -204,7 +243,7 @@ export function setPositionAt(geometry, i, x, y, z) {
     x = x.x
   }
 
-  position.setXYZ(i, x, y, z)
+  offset.setXYZ(i, x, y, z)
 }
 
 function packRGB(r, g, b) {
@@ -279,27 +318,37 @@ export function setOrientationsAt(geometry, i, orientationArray, worldUp = 0) {
 
 export function setVelocityAt(geometry, i, x, y, z, radial = 0) {
   const velocity = geometry.getAttribute("velocity")
-  velocity.setXYZW(i, x, y, z, radial)
+  if (velocity) {
+    velocity.setXYZW(i, x, y, z, radial)
+  }
 }
 
 export function setAccelerationAt(geometry, i, x, y, z, radial = 0) {
   const acceleration = geometry.getAttribute("acceleration")
-  acceleration.setXYZW(i, x, y, z, radial)
+  if (acceleration) {
+    acceleration.setXYZW(i, x, y, z, radial)
+  }
 }
 
 export function setAngularVelocityAt(geometry, i, x, y, z, orbital = 0) {
   const angularvelocity = geometry.getAttribute("angularvelocity")
-  angularvelocity.setXYZW(i, x, y, z, orbital)
+  if (angularvelocity) {
+    angularvelocity.setXYZW(i, x, y, z, orbital)
+  }
 }
 
 export function setAngularAccelerationAt(geometry, i, x, y, z, orbital = 0) {
   const angularacceleration = geometry.getAttribute("angularacceleration")
-  angularacceleration.setXYZW(i, x, y, z, orbital)
+  if (angularacceleration) {
+    angularacceleration.setXYZW(i, x, y, z, orbital)
+  }
 }
 
 export function setWorldAccelerationAt(geometry, i, x, y, z) {
-  const worldAcceleration = geometry.getAttribute("worldacceleration")
-  worldAcceleration.setXYZ(i, x, y, z)
+  const worldacceleration = geometry.getAttribute("worldacceleration")
+  if (worldacceleration) {
+    worldacceleration.setXYZ(i, x, y, z)
+  }
 }
 
 function packBrownain(speed, scale) {
@@ -309,13 +358,17 @@ function packBrownain(speed, scale) {
 export function setBrownianAt(geometry, i, brownianSpeed, brownianScale) {
   console.assert(brownianSpeed >= 0 && brownianSpeed < 64)
   console.assert(brownianScale >= 0 && brownianScale < 64)
-  const worldAcceleration = geometry.getAttribute("worldacceleration")
-  worldAcceleration.setW(i, packBrownain(brownianSpeed, brownianScale) )
+  const worldacceleration = geometry.getAttribute("worldacceleration")
+  if (worldacceleration) {
+    worldacceleration.setW(i, packBrownain(brownianSpeed, brownianScale) )
+  }
 }
 
 export function setVelocityScaleAt(geometry, i, velocityScale, velocityMin, velocityMax) {
   const vs = geometry.getAttribute("velocityscale")
-  vs.setXYZ(i, velocityScale, velocityMin, velocityMax)
+  if (vs) {
+    vs.setXYZ(i, velocityScale, velocityMin, velocityMax)
+  }
 }
 
 export function setKeyframesAt(attribute, i, valueArray, defaultValue) {
@@ -329,10 +382,12 @@ export function setKeyframesAt(attribute, i, valueArray, defaultValue) {
 }
 
 export function needsUpdate(geometry, attrs) {
-  attrs = attrs || ["row1", "row2", "row3", "position", "scales", "colors", "opacities", "orientations", "timings", "frameinfo", "velocity", "acceleration", "worldacceleration"]
+  attrs = attrs || ["row1", "row2", "row3", "offset", "scales", "colors", "opacities", "orientations", "timings", "frameinfo", "velocity", "acceleration", "worldacceleration"]
   for (let attr of attrs) {
     const attribute = geometry.getAttribute(attr)
-    attribute.needsUpdate = true
+    if (attribute) {
+      attribute.needsUpdate = true
+    }
   }
 }
 
@@ -344,22 +399,40 @@ const THREE_PARTICLE_VERTEX = `
 precision highp float;
 precision highp int;
 
+#if defined(USE_MESH)
+attribute vec3 position;
+attribute vec3 normal;
+attribute vec2 uv;
+#endif
+
 attribute vec4 row1;
 attribute vec4 row2;
 attribute vec4 row3;
-attribute vec3 position;
+attribute vec3 offset;
 attribute vec3 scales;
 attribute vec4 orientations;
 attribute vec3 colors;
 attribute vec3 opacities;
+attribute vec2 frameinfo;
 attribute vec4 timings;
+
+#if defined(USE_LINEAR_MOTION) || defined(USE_RADIAL_MOTION)
 attribute vec4 velocity;
 attribute vec4 acceleration;
+#endif
+
+#if defined(USE_ANGULAR_MOTION) || defined(USE_ORBITAL_MOTION)
 attribute vec4 angularvelocity;
 attribute vec4 angularacceleration;
+#endif
+
+#if defined(USE_WORLD_MOTION) || defined(USE_BROWNIAN_MOTION)
 attribute vec4 worldacceleration;
+#endif
+
+#if defined(USE_VELOCITY_SCALE)
 attribute vec4 velocityscale;
-attribute vec2 frameinfo;
+#endif
 
 uniform mat4 modelViewMatrix;
 uniform mat4 projectionMatrix;
@@ -369,8 +442,11 @@ uniform vec2 textureAtlas[ATLAS_SIZE];
 
 varying mat3 vUvTransform;
 varying vec4 vParticleColor;
-varying vec2 vUv;
 varying float vFogDepth;
+
+#if defined(USE_MESH)
+varying vec2 vUv;
+#endif
 
 float rand( vec2 co )
 {
@@ -554,8 +630,8 @@ void main()
     vec4( row1.w, row2.w, row3.w, 1. )
   );
 
-  float distance = length( position );
-  vec3 direction = distance == 0. ? normalize( rand3( vec2(spawnTime, seed) )*2. - .5 ) : position / distance;
+  float distance = length( offset );
+  vec3 direction = distance == 0. ? normalize( rand3( vec2(spawnTime, seed) )*2. - .5 ) : offset / distance;
 
 #if defined(USE_BROWNIAN_MOTION)
   vec2 brownian = unpackBrownian(worldacceleration.w);
@@ -576,7 +652,10 @@ void main()
   vParticleColor = vec4( color, opacity );
   vFogDepth = -mvPosition.z;
 
+#if defined(USE_MESH)
   vUv = vec2(0.);
+#endif
+
   vUvTransform = mat3( 1. );
 
 #if defined(USE_FRAMES_OR_ORIENTATION) || defined(USE_VELOCITY_SCALE)
@@ -640,18 +719,22 @@ void main()
 
 #endif // USE_FRAMES_OR_ORIENTATION || VELOCITY_SCALE
 
+
+#if defined(USE_RIBBON) || defined(USE_MESH)
+  gl_Position = projectionMatrix * modelViewMatrix * vec4( scale * position + globalMotion.xyz, 1. );
+#else
+
 #if defined(USE_PERSPECTIVE)
   float perspective = 1. / -mvPosition.z;
 #else
   float perspective = 1.;
-#endif
+#endif // USE_PERSPECTIVE
 
-#if defined(USE_RIBBON)
-#else
   gl_PointSize = scale * particleSize * perspective;
-#endif
-
   gl_Position = screenPosition;
+
+#endif // USE_RIBBON || USE_MESH
+
 
   if (scale <= 0. || timeRatio < 0. || timeRatio > 1. )
   {
@@ -672,12 +755,15 @@ uniform mat4 projectionMatrix;
 
 varying mat3 vUvTransform;
 varying vec4 vParticleColor;
-varying vec2 vUv;
 varying float vFogDepth;
+
+#if defined(USE_MESH)
+varying vec2 vUv;
+#endif
 
 void main()
 {
-#if defined(USE_RIBBON)
+#if defined(USE_RIBBON) || defined(USE_MESH)
   vec2 uv = ( vUvTransform * vec3( vUv, 1. ) ).xy;
 #else
   vec2 uv = ( vUvTransform * vec3( gl_PointCoord.x, 1.0 - gl_PointCoord.y, 1. ) ).xy;

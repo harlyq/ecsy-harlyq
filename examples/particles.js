@@ -84,11 +84,16 @@ for (let id = 0; id <= 1; id++) {
     .addComponent(ECSY3.Parent, { value: scene })
 }
 
+const coneGeo = new THREE.ConeBufferGeometry()
+const coneMesh = new THREE.Mesh(coneGeo, new THREE.MeshBasicMaterial({color: "pink"}))
+const coneParticleMesh = ECSYHQ.createParticleMesh({mesh: coneMesh, style: 'mesh', particleCount: 2000})
 const sharedParticleMesh = ECSYHQ.createParticleMesh({texture: 'assets/spritesheet.png', particleCount: 20000, alphaTest: .3, useBrownianMotion: true, useVelocityScale: true, transparent: true, depthWrite: false})
 const scene3D = scene.getComponent(ECSY3.Object3D)["value"]
 
 scene3D.add(new THREE.AmbientLight(0xffffff));
 scene3D.add(sharedParticleMesh)
+scene3D.add(coneParticleMesh)
+
 
 world.createEntity()
   .addComponent(ECSYHQ.SimpleParticleEmitter, {
@@ -278,7 +283,7 @@ world.createEntity()
     velocityScale: 2,
     velocityScaleMin: .05,
   })
-  .addComponent(ECSY3.Transform, { position: {x: 1, y:1, z:-4}, rotation: {x:0, y:0, z:0} })
+  .addComponent(ECSY3.Transform, { position: {x:1, y:1, z:-4}, rotation: {x:0, y:0, z:0} })
   .addComponent(ECSY3.Parent, { value: scene })
 
 
@@ -297,7 +302,7 @@ world.createEntity()
     velocityScaleMax: 3,
     get colors() { return ECSYHQ.randomize([{r:0, g:.1, b:.5}], [{r:0, g:.2, b:.4}]) },
   })
-  .addComponent(ECSY3.Transform, { position: {x: 2, y:1.5, z:-4}, rotation: {x:0, y:0, z:0} })
+  .addComponent(ECSY3.Transform, { position: {x:2, y:1.5, z:-4}, rotation: {x:0, y:0, z:0} })
   .addComponent(ECSY3.Parent, { value: scene })
 
 
@@ -313,7 +318,7 @@ world.createEntity()
     get colors() { return ECSYHQ.randomize([{r:0, g:.2, b:.6}], [{r:0, g:.1, b:.4}]) },
     worldAcceleration: {x:0,y:-10,z:0},
   })
-  .addComponent(ECSY3.Transform, { position: {x: 1.9, y:.7, z:-4}, rotation: {x:0, y:0, z:0} })
+  .addComponent(ECSY3.Transform, { position: {x:1.9, y:.7, z:-4}, rotation: {x:0, y:0, z:0} })
   .addComponent(ECSY3.Parent, { value: scene })
 
 world.createEntity()
@@ -331,7 +336,21 @@ world.createEntity()
     get scales() { return ECSYHQ.randomize([10],[15]) },
     get orientations() { return [~~(Math.random()*4)*90] },
   })
-  .addComponent(ECSY3.Transform, { position: {x: 3, y:1, z:-4}, rotation: {x:0, y:0, z:0} })
+  .addComponent(ECSY3.Transform, { position: {x:3, y:1, z:-4}, rotation: {x:0, y:0, z:0} })
+  .addComponent(ECSY3.Parent, { value: scene })
+
+world.createEntity()
+  .addComponent(ECSYHQ.SimpleParticleEmitter, {
+    particleMesh: coneParticleMesh,
+    // atlas: 'blob.png',
+    count: 200,
+    lifeTime: 5,
+    get offset() { return ECSYHQ.randomSphereOffset(.25) },
+    colors: [{r:1,g:0,b:0}],
+    angularVelocity: {x:160, y:0, z:0},
+    scales: [.03]
+  })
+  .addComponent(ECSY3.Transform, { position: {x:-2, y:-1, z:-4}, rotation: {x:0, y:0, z:0} })
   .addComponent(ECSY3.Parent, { value: scene })
 
 world.execute(0,0)

@@ -90,50 +90,6 @@ export function setEmitterTime(emitter, time) {
   ParticleMesh.setMaterialTime(emitter.mesh.material, time)
 }
 
-// export function setEmitterMatrixWorld(emitter, matrixWorld, time, deltaTime) {
-//   const geometry = emitter.mesh.geometry
-//   const endIndex = emitter.endIndex
-//   const startIndex = emitter.startIndex
-//   const timings = geometry.getAttribute("timings")
-//   const repeatTime = timings.getZ(startIndex)
-//   const startTime = timings.getX(startIndex)
-
-//   function timeToParticleIndex(searchTime) {
-//     searchTime = (searchTime - startTime) % repeatTime + startTime
-  
-//     for (let i = startIndex; i < endIndex; i++) {
-//       const spawnTime = timings.getX(i)
-//       if (searchTime <= spawnTime) {
-//         return i
-//       }
-//     }
-
-//     return startIndex
-//   }
-
-//   // determine which particles will be "spawned" this frame
-//   const firstIndex = time ? timeToParticleIndex(time - deltaTime) : startIndex
-//   const secondIndex = time ? timeToParticleIndex(time) : endIndex
-
-//   if (firstIndex < secondIndex) {
-//     for (let i = firstIndex; i < secondIndex; i++) {
-//       ParticleMesh.setMatrixAt(geometry, i, matrixWorld)
-//     }
-
-//   } else if (secondIndex < firstIndex) {
-//     for (let i = firstIndex; i < endIndex; i++) {
-//       ParticleMesh.setMatrixAt(geometry, i, matrixWorld)
-//     }
-
-//     for (let i = startIndex; i < secondIndex; i++) {
-//       ParticleMesh.setMatrixAt(geometry, i, matrixWorld)
-//     }
-
-//   }
-
-//   ParticleMesh.needsUpdate(geometry, ["row1", "row2", "row3"])
-// }
-
 export function setEmitterMatrixWorld(emitter, matrixWorld, time, deltaTime) {
   const geometry = emitter.mesh.geometry
   const endIndex = emitter.endIndex
@@ -159,30 +115,16 @@ export function setEmitterMatrixWorld(emitter, matrixWorld, time, deltaTime) {
 
 
 function spawn(geometry, matrixWorld, config, index, spawnTime, lifeTime, repeatTime, textureFrame, seed, rndFn) {
-  const offset = config.offset
   const velocity = config.velocity
   const acceleration = config.acceleration
-  const radialVelocity = config.radialVelocity
-  const radialAcceleration = config.radialAcceleration
   const angularVelocity = config.angularVelocity
   const angularAcceleration = config.angularAcceleration
-  const orbitalVelocity = config.orbitalVelocity
-  const orbitalAcceleration = config.orbitalAcceleration
   const worldAcceleration = config.worldAcceleration
 
   const particleLifeTime = Array.isArray(lifeTime) ? rndFn()*(lifeTime[1] - lifeTime[0]) + lifeTime[0] : lifeTime
-  const scales = config.scales
   const orientations = config.orientations.map(o => o*DEG2RAD)
-  const colors = config.colors
-  const opacities = config.opacities
   const frames = config.frames
   const atlas = config.atlas
-  const brownianSpeed = config.brownianSpeed
-  const brownianScale = config.brownianScale
-  const worldUp = config.worldUp ? 1 : 0
-  const velocityScale = config.velocityScale
-  const velocityScaleMin = config.velocityScaleMin
-  const velocityScaleMax = config.velocityScaleMax
 
   const startFrame = frames.length > 0 ? frames[0] : 0
   const endFrame = frames.length > 1 ? frames[1] : frames.length > 0 ? frames[0] : textureFrame.cols*textureFrame.rows - 1
@@ -190,21 +132,21 @@ function spawn(geometry, matrixWorld, config, index, spawnTime, lifeTime, repeat
   const atlasIndex = typeof atlas === 'number' ? atlas : 0
 
   ParticleMesh.setMatrixAt(geometry, index, matrixWorld)
-  ParticleMesh.setPositionAt(geometry, index, offset)
-  ParticleMesh.setScalesAt(geometry, index, scales)
-  ParticleMesh.setColorsAt(geometry, index, colors)
-  ParticleMesh.setOrientationsAt(geometry, index, orientations, worldUp)
-  ParticleMesh.setOpacitiesAt(geometry, index, opacities)
+  ParticleMesh.setOffsetAt(geometry, index, config.offset)
+  ParticleMesh.setScalesAt(geometry, index, config.scales)
+  ParticleMesh.setColorsAt(geometry, index, config.colors)
+  ParticleMesh.setOrientationsAt(geometry, index, orientations, config.worldUp ? 1 : 0)
+  ParticleMesh.setOpacitiesAt(geometry, index, config.opacities)
   ParticleMesh.setFrameAt(geometry, index, atlasIndex, frameStyleIndex, startFrame, endFrame, textureFrame.cols, textureFrame.rows)
 
-  ParticleMesh.setTimingsAt(geometry, index, spawnTime, particleLifeTime, repeatTime, seed)
-  ParticleMesh.setVelocityAt(geometry, index, velocity.x, velocity.y, velocity.z, radialVelocity)
-  ParticleMesh.setAccelerationAt(geometry, index, acceleration.x, acceleration.y, acceleration.z, radialAcceleration)
-  ParticleMesh.setAngularVelocityAt(geometry, index, angularVelocity.x*DEG2RAD, angularVelocity.y*DEG2RAD, angularVelocity.z*DEG2RAD, orbitalVelocity*DEG2RAD)
-  ParticleMesh.setAngularAccelerationAt(geometry, index, angularAcceleration.x*DEG2RAD, angularAcceleration.y*DEG2RAD, angularAcceleration.z*DEG2RAD, orbitalAcceleration*DEG2RAD)
+  ParticleMesh.setTimingsAt(geometry, index, spawnTime, particleLifeTime, repeatTime, config.seed)
+  ParticleMesh.setVelocityAt(geometry, index, velocity.x, velocity.y, velocity.z, config.radialVelocity)
+  ParticleMesh.setAccelerationAt(geometry, index, acceleration.x, acceleration.y, acceleration.z, config.radialAcceleration)
+  ParticleMesh.setAngularVelocityAt(geometry, index, angularVelocity.x*DEG2RAD, angularVelocity.y*DEG2RAD, angularVelocity.z*DEG2RAD, config.orbitalVelocity*DEG2RAD)
+  ParticleMesh.setAngularAccelerationAt(geometry, index, angularAcceleration.x*DEG2RAD, angularAcceleration.y*DEG2RAD, angularAcceleration.z*DEG2RAD, config.orbitalAcceleration*DEG2RAD)
   ParticleMesh.setWorldAccelerationAt(geometry, index, worldAcceleration.x, worldAcceleration.y, worldAcceleration.z)
-  ParticleMesh.setBrownianAt(geometry, index, brownianSpeed, brownianScale)
-  ParticleMesh.setVelocityScaleAt(geometry, index, velocityScale, velocityScaleMin, velocityScaleMax)
+  ParticleMesh.setBrownianAt(geometry, index, config.brownianSpeed, config.brownianScale)
+  ParticleMesh.setVelocityScaleAt(geometry, index, config.velocityScale, config.velocityScaleMin, config.velocityScaleMax)
 }
 
 function calcSpawnOffsetsFromGeometry(geometry) {
