@@ -374,15 +374,15 @@ varying float vFogDepth;
 
 float rand( vec2 co )
 {
-return fract( sin( dot( co.xy ,vec2(12.9898,78.233) ) ) * 43758.5453);
+  return fract( sin( dot( co.xy ,vec2(12.9898,78.233) ) ) * 43758.5453);
 }
   
 vec3 rand3( vec2 co )
 {
-float v0 = rand(co);
-float v1 = rand(vec2(co.y, v0));
-float v2 = rand(vec2(co.x, v1));
-return vec3(v0, v1, v2);
+  float v0 = rand(co);
+  float v1 = rand(vec2(co.y, v0));
+  float v2 = rand(vec2(co.x, v1));
+  return vec3(v0, v1, v2);
 }
 
 #if defined(USE_BROWNIAN_MOTION)
@@ -394,270 +394,269 @@ vec4 perm(vec4 x){return mod289(((x * 34.0) + 1.0) * x);}
 
 float noise3(vec3 p)
 {
-vec3 a = floor(p);
-vec3 d = p - a;
-d = d * d * (3.0 - 2.0 * d);
+  vec3 a = floor(p);
+  vec3 d = p - a;
+  d = d * d * (3.0 - 2.0 * d);
 
-vec4 b = a.xxyy + vec4(0.0, 1.0, 0.0, 1.0);
-vec4 k1 = perm(b.xyxy);
-vec4 k2 = perm(k1.xyxy + b.zzww);
+  vec4 b = a.xxyy + vec4(0.0, 1.0, 0.0, 1.0);
+  vec4 k1 = perm(b.xyxy);
+  vec4 k2 = perm(k1.xyxy + b.zzww);
 
-vec4 c = k2 + a.zzzz;
-vec4 k3 = perm(c);
-vec4 k4 = perm(c + 1.0);
+  vec4 c = k2 + a.zzzz;
+  vec4 k3 = perm(c);
+  vec4 k4 = perm(c + 1.0);
 
-vec4 o1 = fract(k3 * (1.0 / 41.0));
-vec4 o2 = fract(k4 * (1.0 / 41.0));
+  vec4 o1 = fract(k3 * (1.0 / 41.0));
+  vec4 o2 = fract(k4 * (1.0 / 41.0));
 
-vec4 o3 = o2 * d.z + o1 * (1.0 - d.z);
-vec2 o4 = o3.yw * d.x + o3.xz * (1.0 - d.x);
+  vec4 o3 = o2 * d.z + o1 * (1.0 - d.z);
+  vec2 o4 = o3.yw * d.x + o3.xz * (1.0 - d.x);
 
-return o4.y * d.y + o4.x * (1.0 - d.y);
+  return o4.y * d.y + o4.x * (1.0 - d.y);
 }
 
 float fbm3(vec3 x)
 {
-float v = 0.0;
-float a = 0.5;
-vec3 shift = vec3(100);
-for (int i = 0; i < NUM_OCTAVES; ++i) {
-  v += a * noise3(x);
-  x = x * 2.0 + shift;
-  a *= 0.5;
-}
-return v;
+  float v = 0.0;
+  float a = 0.5;
+  vec3 shift = vec3(100);
+  for (int i = 0; i < NUM_OCTAVES; ++i) {
+    v += a * noise3(x);
+    x = x * 2.0 + shift;
+    a *= 0.5;
+  }
+  return v;
 }
 #endif // USE_BROWNIAN_MOTION
 
 vec3 unpackFrame( float pack )
 {
-float y = fract( pack ) * 64.;
-return floor( vec3( pack, y, fract( y ) * 4096. ) );
+  float y = fract( pack ) * 64.;
+  return floor( vec3( pack, y, fract( y ) * 4096. ) );
 }
 
 vec2 unpackUVs( float pack )
 {
-float x = pack * 4096.;
-return floor( vec2( x, fract( x ) * 4096. ) ) / 2048.;
+  float x = pack * 4096.;
+  return floor( vec2( x, fract( x ) * 4096. ) ) / 2048.;
 }
 
 vec3 unpackRGB( float pack )
 {
-vec3 enc = fract( pack * vec3( 1., 256., 65536. ) );
-enc -= enc.yzz * vec3( 1./256., 1./256., 0. );
-return enc;
+  vec3 enc = fract( pack * vec3( 1., 256., 65536. ) );
+  enc -= enc.yzz * vec3( 1./256., 1./256., 0. );
+  return enc;
 }
 
 vec2 unpackBrownian( float pack ) {
-float a = pack*4096.;
-return floor( vec2( a, fract( a )*4096. ) ) / 64.;
+  float a = pack*4096.;
+  return floor( vec2( a, fract( a )*4096. ) ) / 64.;
 }
 
 float interpolate( const vec3 keys, const float r )
 {
-float k = r*2.;
-return k < 1. ? mix( keys.x, keys.y, k ) : mix( keys.y, keys.z, k - 1. );
+  float k = r*2.;
+  return k < 1. ? mix( keys.x, keys.y, k ) : mix( keys.y, keys.z, k - 1. );
 }
 
 // assumes euler order is YXZ
 vec4 eulerToQuaternion( const vec3 euler )
 {
-vec3 c = cos( euler * .5 );
-vec3 s = sin( euler * .5 );
+  vec3 c = cos( euler * .5 );
+  vec3 s = sin( euler * .5 );
 
-return vec4(
-  s.x * c.y * c.z + c.x * s.y * s.z,
-  c.x * s.y * c.z - s.x * c.y * s.z,
-  c.x * c.y * s.z - s.x * s.y * c.z,
-  c.x * c.y * c.z + s.x * s.y * s.z
-);
+  return vec4(
+    s.x * c.y * c.z + c.x * s.y * s.z,
+    c.x * s.y * c.z - s.x * c.y * s.z,
+    c.x * c.y * s.z - s.x * s.y * c.z,
+    c.x * c.y * c.z + s.x * s.y * s.z
+  );
 }
 
 vec4 axisAngleToQuaternion( const vec3 axis, const float angle ) 
 {
-return vec4( axis * sin( angle*.5 ), cos( angle*.5 ) );
+  return vec4( axis * sin( angle*.5 ), cos( angle*.5 ) );
 }
 
 vec3 applyQuaternion( const vec3 v, const vec4 q )
 {
-return v + 2. * cross( q.xyz, cross( q.xyz, v ) + q.w * v );
+  return v + 2. * cross( q.xyz, cross( q.xyz, v ) + q.w * v );
 }
 
 vec4 calcGlobalMotion( const mat4 particleMatrix, float distance, vec3 direction, const float age, const float spawnTime, const vec2 brownian, const vec3 orbitalAxis )
 {
 #if defined(USE_RADIAL_MOTION)
-distance += ( .5 * acceleration.w * age + velocity.w ) * age;
+  distance += ( .5 * acceleration.w * age + velocity.w ) * age;
 #endif
 
 #if defined(USE_ANGULAR_MOTION)
-if ( length( angularacceleration.xyz ) > 0. || length( angularvelocity.xyz ) > 0. )
-{
-  vec3 angularMotion = ( .5 * angularacceleration.xyz * age + angularvelocity.xyz ) * age;
-  direction = applyQuaternion( direction, eulerToQuaternion( angularMotion ) );
-}
+  if ( length( angularacceleration.xyz ) > 0. || length( angularvelocity.xyz ) > 0. )
+  {
+    vec3 angularMotion = ( .5 * angularacceleration.xyz * age + angularvelocity.xyz ) * age;
+    direction = applyQuaternion( direction, eulerToQuaternion( angularMotion ) );
+  }
 #endif
 
 #if defined(USE_ORBITAL_MOTION)
-if ( angularacceleration.w != 0. || angularvelocity.w != 0. ) 
-{
-  float orbitalMotion = ( .5 * angularacceleration.w * age + angularvelocity.w ) * age;
-  
-  vec3 axis = normalize( cross( direction, orbitalAxis ) );
-  direction = applyQuaternion( direction, axisAngleToQuaternion( axis, orbitalMotion ) );
-}
+  if ( angularacceleration.w != 0. || angularvelocity.w != 0. ) 
+  {
+    float orbitalMotion = ( .5 * angularacceleration.w * age + angularvelocity.w ) * age;
+
+    vec3 axis = normalize( cross( direction, orbitalAxis ) );
+    direction = applyQuaternion( direction, axisAngleToQuaternion( axis, orbitalMotion ) );
+  }
 #endif
 
-vec3 localMotion = direction * distance;
+  vec3 localMotion = direction * distance;
 
 #if defined(USE_LINEAR_MOTION)
-localMotion += ( .5 * acceleration.xyz * age + velocity.xyz ) * age;
+  localMotion += ( .5 * acceleration.xyz * age + velocity.xyz ) * age;
 #endif
 
-vec4 globalMotion = particleMatrix * vec4( localMotion, 1. );
+  vec4 globalMotion = particleMatrix * vec4( localMotion, 1. );
 
 #if defined(USE_WORLD_MOTION)
-globalMotion.xyz += .5 * worldacceleration.xyz * age * age;
+  globalMotion.xyz += .5 * worldacceleration.xyz * age * age;
 #endif
 
 #if defined(USE_BROWNIAN_MOTION)
-float r = age*brownian.x;
-float nx = fbm3( globalMotion.xyz - rand( vec2(localMotion.x, spawnTime) )*r ) - .5;
-float ny = fbm3( globalMotion.yzx + rand( vec2(localMotion.y, spawnTime) )*r ) - .5;
-float nz = fbm3( globalMotion.zxy - rand( vec2(localMotion.z, spawnTime) )*r ) - .5;
-globalMotion.xyz += vec3(nx, ny, nz)*brownian.y;
+  float r = age*brownian.x;
+  float nx = fbm3( globalMotion.xyz - rand( vec2(localMotion.x, spawnTime) )*r ) - .5;
+  float ny = fbm3( globalMotion.yzx + rand( vec2(localMotion.y, spawnTime) )*r ) - .5;
+  float nz = fbm3( globalMotion.zxy - rand( vec2(localMotion.z, spawnTime) )*r ) - .5;
+  globalMotion.xyz += vec3(nx, ny, nz)*brownian.y;
 #endif
 
-return globalMotion;
+  return globalMotion;
 }
 
 void main()
 {
-float spawnTime = timings.x;
-float lifeTime = timings.y;
-float repeatTime = timings.z;
-float seed = timings.w;
-float age = mod( t - spawnTime, max( repeatTime, lifeTime ) );
-float timeRatio = age / lifeTime;
+  float spawnTime = timings.x;
+  float lifeTime = timings.y;
+  float repeatTime = timings.z;
+  float seed = timings.w;
+  float age = mod( t - spawnTime, max( repeatTime, lifeTime ) );
+  float timeRatio = age / lifeTime;
 
-float scale = interpolate( scales, timeRatio );
-float opacity = interpolate( opacities, timeRatio );
-vec3 color = vec3(
-  interpolate( unpackRGB( colors.x ), timeRatio ),
-  interpolate( unpackRGB( colors.y ), timeRatio ),
-  interpolate( unpackRGB( colors.z ), timeRatio )
-);
+  float scale = interpolate( scales, timeRatio );
+  float opacity = interpolate( opacities, timeRatio );
+  vec3 color = vec3(
+    interpolate( unpackRGB( colors.x ), timeRatio ),
+    interpolate( unpackRGB( colors.y ), timeRatio ),
+    interpolate( unpackRGB( colors.z ), timeRatio )
+  );
 
-mat4 particleMatrix = mat4(
-  vec4( row1.x, row2.x, row3.x, 0. ),
-  vec4( row1.y, row2.y, row3.y, 0. ),
-  vec4( row1.z, row2.z, row3.z, 0. ),
-  vec4( row1.w, row2.w, row3.w, 1. )
-);
+  mat4 particleMatrix = mat4(
+    vec4( row1.x, row2.x, row3.x, 0. ),
+    vec4( row1.y, row2.y, row3.y, 0. ),
+    vec4( row1.z, row2.z, row3.z, 0. ),
+    vec4( row1.w, row2.w, row3.w, 1. )
+  );
 
-float distance = length( position );
-vec3 direction = distance == 0. ? normalize( rand3( vec2(spawnTime, seed) )*2. - .5 ) : position / distance;
+  float distance = length( position );
+  vec3 direction = distance == 0. ? normalize( rand3( vec2(spawnTime, seed) )*2. - .5 ) : position / distance;
 
 #if defined(USE_BROWNIAN_MOTION)
-vec2 brownian = unpackBrownian(worldacceleration.w);
+  vec2 brownian = unpackBrownian(worldacceleration.w);
 #else
-vec2 brownian = vec2(0.);
+  vec2 brownian = vec2(0.);
 #endif
 
 #if defined(USE_ORBITAL_MOTION)
-vec3 orbitalAxis = normalize( rand3( vec2(spawnTime, seed) )*2. - .5 );
+  vec3 orbitalAxis = normalize( rand3( vec2(spawnTime, seed) )*2. - .5 );
 #else
-vec3 orbitalAxis = vec3(0.);
+  vec3 orbitalAxis = vec3(0.);
 #endif
 
-vec4 globalMotion = calcGlobalMotion( particleMatrix, distance, direction, age, spawnTime, brownian, orbitalAxis );
-vec4 mvPosition = modelViewMatrix * globalMotion;
-vec4 screenPosition = projectionMatrix * mvPosition;
+  vec4 globalMotion = calcGlobalMotion( particleMatrix, distance, direction, age, spawnTime, brownian, orbitalAxis );
+  vec4 mvPosition = modelViewMatrix * globalMotion;
+  vec4 screenPosition = projectionMatrix * mvPosition;
 
-vParticleColor = vec4( color, opacity );
-vFogDepth = -mvPosition.z;
+  vParticleColor = vec4( color, opacity );
+  vFogDepth = -mvPosition.z;
 
-vUv = vec2(0.);
-vUvTransform = mat3( 1. );
+  vUv = vec2(0.);
+  vUvTransform = mat3( 1. );
 
 #if defined(USE_FRAMES_OR_ORIENTATION) || defined(USE_VELOCITY_SCALE)
 
-float orientation = interpolate( orientations.xyz, timeRatio );
+  float orientation = interpolate( orientations.xyz, timeRatio );
 
 #if defined(USE_VELOCITY_SCALE)
-vec4 futureMotion = calcGlobalMotion( particleMatrix, distance, direction, age + .01, spawnTime, brownian, orbitalAxis );
-vec4 screenFuture = projectionMatrix * modelViewMatrix * futureMotion;
-vec2 delta = screenFuture.xy / screenFuture.z - screenPosition.xy / screenPosition.z;
+  vec4 futureMotion = calcGlobalMotion( particleMatrix, distance, direction, age + .01, spawnTime, brownian, orbitalAxis );
+  vec4 screenFuture = projectionMatrix * modelViewMatrix * futureMotion;
+  vec2 delta = screenFuture.xy / screenFuture.z - screenPosition.xy / screenPosition.z;
 
-float lenDelta = length( delta );
-float velocityOrientation = atan( delta.x, delta.y );
+  float lenDelta = length( delta );
+  float velocityOrientation = atan( delta.x, delta.y );
 
-if (velocityscale.x > 0.) {
-  orientation -= velocityOrientation;
-  scale *= clamp(velocityscale.x*100.*lenDelta*screenFuture.z, velocityscale.y, velocityscale.z );
-}
+  if (velocityscale.x > 0.) {
+    orientation -= velocityOrientation;
+    scale *= clamp(velocityscale.x*100.*lenDelta*screenFuture.z, velocityscale.y, velocityscale.z );
+  }
 #endif // USE_VELOCITY_SCALE
 
-vec4 upView = modelViewMatrix * vec4(0., 1., 0., 1.) - modelViewMatrix * vec4(0., 0., 0., 1.);
-float viewOrientation = atan( upView.x, upView.y );
-orientation -= viewOrientation * orientations.w;
+  vec4 upView = modelViewMatrix * vec4(0., 1., 0., 1.) - modelViewMatrix * vec4(0., 0., 0., 1.);
+  float viewOrientation = atan( upView.x, upView.y );
+  orientation -= viewOrientation * orientations.w;
 
-vec3 frameInfoA = unpackFrame( frameinfo.x );
-vec3 frameInfoB = unpackFrame( frameinfo.y );
+  vec3 frameInfoA = unpackFrame( frameinfo.x );
+  vec3 frameInfoB = unpackFrame( frameinfo.y );
 
-float frameCols = frameInfoA.x;
-float frameRows = frameInfoA.y;
-float startFrame = frameInfoA.z;
-float endFrame = frameInfoB.z;
+  float frameCols = frameInfoA.x;
+  float frameRows = frameInfoA.y;
+  float startFrame = frameInfoA.z;
+  float endFrame = frameInfoB.z;
 
-int atlasIndex = int( frameInfoB.y );
-vec2 atlasUV = unpackUVs( textureAtlas[atlasIndex].x );
-vec2 atlasSize = unpackUVs( textureAtlas[atlasIndex].y );
-vec2 frameUV = atlasSize/frameInfoA.xy;
+  int atlasIndex = int( frameInfoB.y );
+  vec2 atlasUV = unpackUVs( textureAtlas[atlasIndex].x );
+  vec2 atlasSize = unpackUVs( textureAtlas[atlasIndex].y );
+  vec2 frameUV = atlasSize/frameInfoA.xy;
 
-float frameStyle = frameInfoB.x;
-float numFrames = endFrame - startFrame + 1.;
-float currentFrame = floor( mix( startFrame, endFrame + .99999, timeRatio ) );
+  float frameStyle = frameInfoB.x;
+  float numFrames = endFrame - startFrame + 1.;
+  float currentFrame = floor( mix( startFrame, endFrame + .99999, timeRatio ) );
 
-currentFrame = frameStyle == 0. ? currentFrame 
-  : frameStyle == 1. ? ( floor( rand( vec2(currentFrame * 6311., seed) ) * numFrames ) + startFrame  )
-  : ( floor( seed * numFrames ) + startFrame );
+  currentFrame = frameStyle == 0. ? currentFrame 
+    : frameStyle == 1. ? ( floor( rand( vec2(currentFrame * 6311., seed) ) * numFrames ) + startFrame  )
+    : ( floor( seed * numFrames ) + startFrame );
 
-float tx = mod( currentFrame, frameCols ) * frameUV.x + atlasUV.x;
-float ty = 1. - floor( currentFrame / frameCols ) * frameUV.y - atlasUV.y;
-float sx = frameUV.x;
-float sy = frameUV.y;
-float cx = .5 * sx;
-float cy = -.5 * sy;
-float c = cos( orientation );
-float s = sin( orientation );
+  float tx = mod( currentFrame, frameCols ) * frameUV.x + atlasUV.x;
+  float ty = 1. - floor( currentFrame / frameCols ) * frameUV.y - atlasUV.y;
+  float sx = frameUV.x;
+  float sy = frameUV.y;
+  float cx = .5 * sx;
+  float cy = -.5 * sy;
+  float c = cos( orientation );
+  float s = sin( orientation );
 
-mat3 uvrot = mat3( vec3( c, -s, 0. ), vec3( s, c, 0. ), vec3( 0., 0., 1.) );
-mat3 uvtrans = mat3( vec3( 1., 0., 0. ), vec3( 0., 1., 0. ), vec3( tx + cx, ty + cy, 1. ) );
-mat3 uvscale = mat3( vec3( sx, 0., 0. ), vec3( 0., sy, 0. ), vec3( 0., 0., 1.) );
-mat3 uvcenter = mat3( vec3( 1., 0., 0. ), vec3( 0., 1., 0. ), vec3( -cx / sx, cy / sy, 1. ) );  
+  mat3 uvrot = mat3( vec3( c, -s, 0. ), vec3( s, c, 0. ), vec3( 0., 0., 1.) );
+  mat3 uvtrans = mat3( vec3( 1., 0., 0. ), vec3( 0., 1., 0. ), vec3( tx + cx, ty + cy, 1. ) );
+  mat3 uvscale = mat3( vec3( sx, 0., 0. ), vec3( 0., sy, 0. ), vec3( 0., 0., 1.) );
+  mat3 uvcenter = mat3( vec3( 1., 0., 0. ), vec3( 0., 1., 0. ), vec3( -cx / sx, cy / sy, 1. ) );  
 
-vUvTransform = uvtrans * uvscale * uvrot * uvcenter;
+  vUvTransform = uvtrans * uvscale * uvrot * uvcenter;
 
 #endif // USE_FRAMES_OR_ORIENTATION || VELOCITY_SCALE
 
 #if defined(USE_PERSPECTIVE)
-float perspective = 1. / -mvPosition.z;
+  float perspective = 1. / -mvPosition.z;
 #else
-float perspective = 1.;
+  float perspective = 1.;
 #endif
 
 #if defined(USE_RIBBON)
 #else
-gl_PointSize = scale * particleSize * perspective;
+  gl_PointSize = scale * particleSize * perspective;
 #endif
 
-gl_Position = screenPosition;
+  gl_Position = screenPosition;
 
-if (scale <= 0. || timeRatio < 0. || timeRatio > 1. )
-{
-  gl_Position.w = -2.; // don't draw
-}
-
+  if (scale <= 0. || timeRatio < 0. || timeRatio > 1. )
+  {
+    gl_Position.w = -2.; // don't draw
+  }
 }`
 
 const THREE_PARTICLE_FRAGMENT = `
@@ -679,28 +678,27 @@ varying float vFogDepth;
 void main()
 {
 #if defined(USE_RIBBON)
-vec2 uv = ( vUvTransform * vec3( vUv, 1. ) ).xy;
+  vec2 uv = ( vUvTransform * vec3( vUv, 1. ) ).xy;
 #else
-vec2 uv = ( vUvTransform * vec3( gl_PointCoord.x, 1.0 - gl_PointCoord.y, 1. ) ).xy;
+  vec2 uv = ( vUvTransform * vec3( gl_PointCoord.x, 1.0 - gl_PointCoord.y, 1. ) ).xy;
 #endif
 
-vec4 diffuseColor = vParticleColor;
-vec4 mapTexel = texture2D( map, uv );
-// diffuseColor *= mapTexelToLinear( mapTexel );
-diffuseColor *= mapTexel;
+  vec4 diffuseColor = vParticleColor;
+  vec4 mapTexel = texture2D( map, uv );
+  diffuseColor *= mapTexel;
 
 #if defined(ALPHATEST)
-if ( diffuseColor.a < ALPHATEST ) {
-  discard;
-}
+  if ( diffuseColor.a < ALPHATEST ) {
+    discard;
+  }
 #endif
 
-gl_FragColor = diffuseColor;
+  gl_FragColor = diffuseColor;
 
 #if defined(USE_FOG)
-float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );
+  float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );
 
-gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );
+  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );
 #endif
 }`
 
