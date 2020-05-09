@@ -51,8 +51,8 @@ export function createParticleMesh(options) {
       textureAtlas: { value: new Float32Array(2) }
     },
 
-    fragmentShader: SIMPLE_PARTICLE_FRAGMENT,
-    vertexShader: SIMPLE_PARTICLE_VERTEX,
+    fragmentShader: THREE_PARTICLE_FRAGMENT,
+    vertexShader: THREE_PARTICLE_VERTEX,
 
     defines: {},
   })
@@ -340,7 +340,7 @@ export function needsUpdate(geometry, attrs) {
 // axisAngleToQuaternion() from http://www.euclideanspace.com/maths/geometry/orientations/conversions/angleToQuaternion/index.htm
 // fbm3() from https://github.com/yiwenl/glsl-fbm
 // instead of rand3() should we generate a random point on a sphere?
-const SIMPLE_PARTICLE_VERTEX = `
+const THREE_PARTICLE_VERTEX = `
 precision highp float;
 precision highp int;
 
@@ -660,7 +660,7 @@ if (scale <= 0. || timeRatio < 0. || timeRatio > 1. )
 
 }`
 
-const SIMPLE_PARTICLE_FRAGMENT = `
+const THREE_PARTICLE_FRAGMENT = `
 precision highp float;
 precision highp int;
 

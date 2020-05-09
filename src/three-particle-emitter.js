@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import * as ParticleMesh from './simple-particle-mesh.js'
+import * as ParticleMesh from './three-particle-mesh.js'
 import * as RND from "./pseudo-random.js"
 
 const error = console.error
@@ -63,7 +63,7 @@ export function createParticleEmitter(options, matrixWorld, time = 0) {
   textureFrame = config.textureFrame ? config.textureFrame : mesh.userData.meshConfig.textureFrame
 
   if (config.count > 0 && startIndex + config.count > meshParticleCount) {
-    error(`run out of particles, increase the particleCount for this SimpleParticleMesh`)
+    error(`run out of particles, increase the particleCount for this ThreeParticleMesh`)
   }
 
   const numParticles = count >= 0 ? count : meshParticleCount - mesh.userData.nextIndex

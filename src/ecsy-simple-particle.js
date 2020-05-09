@@ -1,7 +1,7 @@
 import * as ECSY from 'ecsy'
 import * as ECSY3 from 'ecsy-three'
 import * as THREE from 'three'
-import * as ParticleEmitter from './simple-particle-emitter.js'
+import * as ParticleEmitter from './three-particle-emitter.js'
 
 class SimpleParticleEmitterState extends ECSY.SystemStateComponent {
   constructor() {
