@@ -85,12 +85,13 @@ for (let id = 0; id <= 1; id++) {
 }
 
 const coneGeo = new THREE.ConeBufferGeometry()
-const coneMesh = new THREE.Mesh(coneGeo, new THREE.MeshBasicMaterial({color: "pink"}))
+const coneMesh = new THREE.Mesh(coneGeo, new THREE.MeshStandardMaterial({color: "pink"}))
 const coneParticleMesh = ECSYHQ.createParticleMesh({mesh: coneMesh, style: 'mesh', particleCount: 2000})
 const sharedParticleMesh = ECSYHQ.createParticleMesh({texture: 'assets/spritesheet.png', particleCount: 20000, alphaTest: .3, useBrownianMotion: true, useVelocityScale: true, transparent: true, depthWrite: false})
 const scene3D = scene.getComponent(ECSY3.Object3D)["value"]
 
-scene3D.add(new THREE.AmbientLight(0xffffff));
+scene3D.add(new THREE.AmbientLight(0x404040));
+scene3D.add(new THREE.DirectionalLight());
 scene3D.add(sharedParticleMesh)
 scene3D.add(coneParticleMesh)
 
@@ -346,7 +347,7 @@ world.createEntity()
     count: 200,
     lifeTime: 5,
     get offset() { return ECSYHQ.randomSphereOffset(.25) },
-    colors: [{r:1,g:0,b:0}],
+    colors: [{r:0,g:1,b:1}],
     angularVelocity: {x:160, y:0, z:0},
     scales: [.03]
   })

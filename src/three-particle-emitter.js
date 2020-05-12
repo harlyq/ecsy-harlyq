@@ -81,7 +81,7 @@ export function createParticleEmitter(options, matrixWorld, time = 0) {
 
   ParticleMesh.needsUpdate(geometry)
 
-  loadTexturePackerJSON(mesh, config, startIndex, endIndex)
+  ParticleMesh.loadTexturePackerJSON(mesh, config, startIndex, endIndex)
 
   return {startTime, startIndex, endIndex, mesh}
 }
@@ -180,31 +180,4 @@ function calcSpawnOffsetsFromGeometry(geometry) {
   })
 
   return Float32Array.from(worldPositions)
-}
-
-function loadTexturePackerJSON(mesh, config, startIndex, endIndex) {
-  const jsonFilename = mesh.userData.meshConfig.texture.replace(/\.[^\.]+$/, ".json")
-  fetch(jsonFilename)
-    .then((response) => {
-      return response.json()
-    })
-    .then((atlasJSON) => {
-      ParticleMesh.setTextureAtlas(mesh.material, atlasJSON)
-
-      if (typeof config.atlas === 'string') {
-        const atlasIndex = Array.isArray(atlasJSON.frames)
-          ? atlasJSON.frames.findIndex(frame => frame.filename === config.atlas)
-          : Object.keys(atlasJSON.frames).findIndex(filename => filename === config.atlas)
-
-        if (atlasIndex < 0) {
-          error(`unable to find atlas entry '${config.atlas}'`)
-        }
-
-        for (let i = startIndex; i < endIndex; i++) {
-          ParticleMesh.setAtlasIndexAt(mesh.geometry, i, atlasIndex)
-        }
-
-        ParticleMesh.needsUpdate(mesh.geometry, ["frameinfo"])
-      }
-    })
 }

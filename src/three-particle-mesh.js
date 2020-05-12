@@ -5,6 +5,25 @@ WHITE_TEXTURE.needsUpdate = true
 
 const textureLoader = new THREE.TextureLoader()
 
+// from threejs
+const shaderIDs = {
+  MeshDepthMaterial: 'depth',
+  MeshDistanceMaterial: 'distanceRGBA',
+  MeshNormalMaterial: 'normal',
+  MeshBasicMaterial: 'basic',
+  MeshLambertMaterial: 'lambert',
+  MeshPhongMaterial: 'phong',
+  MeshToonMaterial: 'toon',
+  MeshStandardMaterial: 'physical',
+  MeshPhysicalMaterial: 'physical',
+  MeshMatcapMaterial: 'matcap',
+  LineBasicMaterial: 'basic',
+  LineDashedMaterial: 'dashed',
+  PointsMaterial: 'points',
+  ShadowMaterial: 'shadow',
+  SpriteMaterial: 'sprite'
+}
+
 export function createParticleMesh(options) {
   const config = {
     particleCount: 1000,
@@ -37,35 +56,51 @@ export function createParticleMesh(options) {
 
   updateGeometry(geometry, config)
 
-  const material = new THREE.RawShaderMaterial({
-    uniforms: {
-      map: { type: 't', value: WHITE_TEXTURE },
-      textureFrame: { value: new THREE.Vector2(1,1) },
-      particleSize: { value: 10 },
-      t: { value: 0 },
+  let shaderID = 'points'
+  if (isMesh) {
+    shaderID = shaderIDs[config.mesh.material.type] || 'physical'
+  }
+  const shader = THREE.ShaderLib[shaderID]
 
-      fogDensity: { value: 0.00025 },
-      fogNear: { value: 1 },
-      fogFar: { value: 2000 },
-      fogColor: { value: new THREE.Color( 0xffffff ) },
-      textureAtlas: { value: new Float32Array(2) }
-    },
+  const uniforms = THREE.UniformsUtils.merge([
+    shader.uniforms,
+    {
+      time: { value: 0 },
+      textureAtlas: { value: new Float32Array(2) },
+    }
+  ])
 
-    fragmentShader: THREE_PARTICLE_FRAGMENT,
-    vertexShader: THREE_PARTICLE_VERTEX,
-
+  // custom uniforms can only be used on ShaderMaterial and RawShaderMaterial
+  const material = new THREE.ShaderMaterial({
+    uniforms,
+    vertexShader: shader.vertexShader,
+    fragmentShader: shader.fragmentShader,
     defines: {},
+    extensions: {
+      derivatives: shaderID === 'physical', // I don't know who should set this!!
+    },
+    lights: isMesh, // lights are automatically setup for various materials, but must be manually setup for ShaderMaterial
   })
+
+  injectParticleShaderCode(material)
 
   updateMaterial(material, config)
 
-  const mesh = isMesh ? new THREE.Mesh(geometry, material) : new THREE.Points(geometry, material)
-  mesh.frustumCulled = false
-  mesh.userData = mesh.userData || {}
-  mesh.userData.nextIndex = 0
-  mesh.userData.meshConfig = config
+  let particleMesh
+  if (isMesh) {
+    particleMesh = new THREE.Mesh(geometry, material)
+    material["originalMaterial"] = config.mesh.material
+  } else {
+    particleMesh = new THREE.Points(geometry, material)
+  }
 
-  return mesh
+  particleMesh.frustumCulled = false
+  particleMesh.userData = {
+    nextIndex: 0,
+    meshConfig: config
+  }
+
+  return particleMesh
 }
 
 export function updateGeometry(geometry, config) {
@@ -76,20 +111,19 @@ export function updateGeometry(geometry, config) {
   const row1s = new Float32Array(particleCount*4)
   const row2s = new Float32Array(particleCount*4)
   const row3s = new Float32Array(particleCount*4)
-  const scales = new Float32Array(particleCount*NUM_KEYFRAMES)
-  const orientations = new Float32Array(particleCount*(NUM_KEYFRAMES + 1)) // orientation keyframes + screen up
-  const colors = new Float32Array(particleCount*NUM_KEYFRAMES) // rgb is packed into a single float
-  const opacities = new Float32Array(particleCount*NUM_KEYFRAMES).fill(1)
-  const frameInfos = new Float32Array(particleCount*2)
+  const scales = new Float32Array(particleCount*NUM_KEYFRAMES) // scales over time (0 scale implies hidden)
+  const orientations = new Float32Array(particleCount*(NUM_KEYFRAMES + 1)) // orientation over time + screen up
+  const colors = new Float32Array(particleCount*(NUM_KEYFRAMES + 1)) // colors over time (rgb is packed into a single float) + frameInfo part 1
+  const opacities = new Float32Array(particleCount*(NUM_KEYFRAMES + 1)).fill(1) // opacities over time + frameInfo part 2
   const timings = new Float32Array(particleCount*4)
 
   const isInstancedBufferGeometry = geometry instanceof THREE.InstancedBufferGeometry
   const bufferFn = isInstancedBufferGeometry ? THREE.InstancedBufferAttribute : THREE.Float32BufferAttribute
 
   if (!isInstancedBufferGeometry) {
-    // this.renderBufferDirect() in threejs assumes an attribute called *position* and uses the attribute's *count* to determine
-    // the number of particles to draw!
-    geometry.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(particleCount), 1))
+    // this.renderBufferDirect() in threejs assumes an attribute called *position* exists and uses the attribute's *count* to 
+    // determine the number of particles to draw!
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(particleCount*3), 3))
   }
 
   geometry.setAttribute("row1", new bufferFn(row1s, row1s.length/particleCount))
@@ -100,7 +134,6 @@ export function updateGeometry(geometry, config) {
   geometry.setAttribute("orientations", new bufferFn(orientations, orientations.length/particleCount))
   geometry.setAttribute("colors", new bufferFn(colors, colors.length/particleCount)) 
   geometry.setAttribute("opacities", new bufferFn(opacities, opacities.length/particleCount))
-  geometry.setAttribute("frameinfo", new bufferFn(frameInfos, frameInfos.length/particleCount))
   geometry.setAttribute("timings", new bufferFn(timings, timings.length/particleCount))
 
   if (config.useLinearMotion || config.useRadialMotion) {
@@ -123,7 +156,7 @@ export function updateGeometry(geometry, config) {
   }
 
   if (config.useVelocityScale) {
-    const velocityScales = new Float32Array(particleCount*3)
+    const velocityScales = new Float32Array(particleCount*3) // velocityScale (x), velocityScaleMin (y), velocityScaleMax (z)
     geometry.setAttribute("velocityscale", new bufferFn(velocityScales, velocityScales.length/particleCount))
   }
 
@@ -138,7 +171,8 @@ export function updateGeometry(geometry, config) {
 }
 
 export function updateMaterial(material, config) {
-  material.uniforms.particleSize.value = config.particleSize
+  updateOriginalMaterialUniforms(material)
+
   material.uniforms.textureAtlas.value[0] = 0 // 0,0 unpacked uvs
   material.uniforms.textureAtlas.value[1] = 0.50012207031 // 1.,1. unpacked uvs
 
@@ -149,45 +183,89 @@ export function updateMaterial(material, config) {
   material.depthTest = config.depthTest
 
   const style = config.style.toLowerCase()
-  const defines = {}
+  const defines = material.defines
+
   if (config.useAngularMotion) defines.USE_ANGULAR_MOTION = true
   if (config.useRadialMotion) defines.USE_RADIAL_MOTION = true
   if (config.useOrbitalMotion) defines.USE_ORBITAL_MOTION = true
   if (config.useLinearMotion) defines.USE_LINEAR_MOTION = true
   if (config.useWorldMotion) defines.USE_WORLD_MOTION = true
   if (config.useBrownianMotion) defines.USE_BROWNIAN_MOTION = true
-  if (config.useVelocityScale) defines.USE_VELOCITY_SCALE = true
-  if (config.useFramesOrOrientation) defines.USE_FRAMES_OR_ORIENTATION = true
-  if (config.usePerspective) defines.USE_PERSPECTIVE = true
   if (config.fog) defines.USE_FOG = true
   if (config.alphaTest) defines.ALPHATEST = config.alphaTest
-  if (style === 'mesh') defines.USE_MESH = true
   if (style === 'ribbon') defines.USE_RIBBON = true
+  if (style === 'mesh') defines.USE_MESH = true
   defines.ATLAS_SIZE = 1
-  
-  material.defines = defines
-  material.uniforms.map.value = WHITE_TEXTURE
 
-  if (config.texture) {
-    if (config.texture instanceof THREE.Texture) {
-      material.uniform.map.value = config.texture
-    } else {
-      textureLoader.load(
-        config.texture, 
-        (texture) => {
-          material.uniforms.map.value = texture
-        }, 
-        undefined, 
-        (err) => console.error(err)
-      )
+  if (style !== 'mesh') {
+    if (config.useVelocityScale) defines.USE_VELOCITY_SCALE = true
+    if (config.useFramesOrOrientation) defines.USE_FRAMES_OR_ORIENTATION = true
+    if (config.usePerspective) defines.USE_SIZEATTENUATION = true
+    material.uniforms.size.value = config.particleSize
+
+    material.uniforms.map.value = WHITE_TEXTURE
+    material.map = WHITE_TEXTURE // WARNING textures don't appear unless this is set to something
+
+    if (config.texture) {
+      if (config.texture instanceof THREE.Texture) {
+        material.uniforms.map.value = config.texture
+      } else {
+        textureLoader.load(
+          config.texture, 
+          (texture) => {
+            material.uniforms.map.value = texture
+          }, 
+          undefined, 
+          (err) => console.error(err)
+        )
+      }
     }
   }
+  
+  Object.assign(material.defines, defines)
 
   material.needsUpdate = true
 }
 
+export function updateOriginalMaterialUniforms(material) {
+  if (material.originalMaterial) {
+    for (let k in material.uniforms) {
+      if (k in material) {
+        material.uniforms[k].value = material.originalMaterial[k]
+      }
+    }
+  }
+}
+
 export function setMaterialTime(material, time) {
-  material.uniforms.t.value = time
+  material.uniforms.time.value = time
+}
+
+export function loadTexturePackerJSON(mesh, config, startIndex, endIndex) {
+  const jsonFilename = mesh.userData.meshConfig.texture.replace(/\.[^\.]+$/, ".json")
+  fetch(jsonFilename)
+    .then((response) => {
+      return response.json()
+    })
+    .then((atlasJSON) => {
+      setTextureAtlas(mesh.material, atlasJSON)
+
+      if (typeof config.atlas === 'string') {
+        const atlasIndex = Array.isArray(atlasJSON.frames)
+          ? atlasJSON.frames.findIndex(frame => frame.filename === config.atlas)
+          : Object.keys(atlasJSON.frames).findIndex(filename => filename === config.atlas)
+
+        if (atlasIndex < 0) {
+          console.error(`unable to find atlas entry '${config.atlas}'`)
+        }
+
+        for (let i = startIndex; i < endIndex; i++) {
+          setAtlasIndexAt(mesh.geometry, i, atlasIndex)
+        }
+
+        needsUpdate(mesh.geometry, ["colors", "opacities"])
+      }
+    })
 }
 
 function packUVs(u,v) {
@@ -293,16 +371,18 @@ export function setTimingsAt(geometry, i, spawnTime, lifeTime, repeatTime, seed 
 }
 
 export function setFrameAt(geometry, i, atlasIndex, frameStyle, startFrame, endFrame, cols, rows) {
-  const frameinfo = geometry.getAttribute("frameinfo")
+  const colors = geometry.getAttribute("colors")
+  const opacities = geometry.getAttribute("opacities")
   const packA = ~~(cols) + ~~(rows)/64 + ~~(startFrame)/262144
   const packB = frameStyle + Math.max(0,atlasIndex)/64 + ~~(endFrame)/262144
-  frameinfo.setXY(i, packA, packB)
+  colors.setW(i, packA)
+  opacities.setW(i, packB)
 }
 
 export function setAtlasIndexAt(geometry, i, atlasIndex) {
-  const frameinfo = geometry.getAttribute("frameinfo")
-  const packB = frameinfo.getY(i)
-  frameinfo.setY(i, Math.floor(packB) + Math.max(0,atlasIndex)/64 + (packB*262144 % 4096)/262144)
+  const opacities = geometry.getAttribute("opacities")
+  const packB = opacities.getW(i)
+  opacities.setW(i, Math.floor(packB) + Math.max(0,atlasIndex)/64 + (packB*262144 % 4096)/262144)
 }
 
 export function setScalesAt(geometry, i, scaleArray) {
@@ -382,7 +462,7 @@ export function setKeyframesAt(attribute, i, valueArray, defaultValue) {
 }
 
 export function needsUpdate(geometry, attrs) {
-  attrs = attrs || ["row1", "row2", "row3", "offset", "scales", "colors", "opacities", "orientations", "timings", "frameinfo", "velocity", "acceleration", "worldacceleration"]
+  attrs = attrs || ["row1", "row2", "row3", "offset", "scales", "colors", "opacities", "orientations", "timings", "velocity", "acceleration", "worldacceleration", "velocityscale"]
   for (let attr of attrs) {
     const attribute = geometry.getAttribute(attr)
     if (attribute) {
@@ -395,25 +475,16 @@ export function needsUpdate(geometry, attrs) {
 // axisAngleToQuaternion() from http://www.euclideanspace.com/maths/geometry/orientations/conversions/angleToQuaternion/index.htm
 // fbm3() from https://github.com/yiwenl/glsl-fbm
 // instead of rand3() should we generate a random point on a sphere?
-const THREE_PARTICLE_VERTEX = `
-precision highp float;
-precision highp int;
-
-#if defined(USE_MESH)
-attribute vec3 position;
-attribute vec3 normal;
-attribute vec2 uv;
-#endif
-
+function injectParticleShaderCode(material) {
+  material.vertexShader = material.vertexShader.replace("void main()", `
 attribute vec4 row1;
 attribute vec4 row2;
 attribute vec4 row3;
 attribute vec3 offset;
 attribute vec3 scales;
 attribute vec4 orientations;
-attribute vec3 colors;
-attribute vec3 opacities;
-attribute vec2 frameinfo;
+attribute vec4 colors;
+attribute vec4 opacities;
 attribute vec4 timings;
 
 #if defined(USE_LINEAR_MOTION) || defined(USE_RADIAL_MOTION)
@@ -434,25 +505,12 @@ attribute vec4 worldacceleration;
 attribute vec4 velocityscale;
 #endif
 
-uniform mat4 modelViewMatrix;
-uniform mat4 projectionMatrix;
-uniform float particleSize;
-uniform float t;
+uniform float time;
 uniform vec2 textureAtlas[ATLAS_SIZE];
 
 varying mat3 vUvTransform;
 varying vec4 vParticleColor;
-varying float vFogDepth;
 
-#if defined(USE_MESH)
-varying vec2 vUv;
-#endif
-
-float rand( vec2 co )
-{
-  return fract( sin( dot( co.xy ,vec2(12.9898,78.233) ) ) * 43758.5453);
-}
-  
 vec3 rand3( vec2 co )
 {
   float v0 = rand(co);
@@ -606,18 +664,24 @@ vec4 calcGlobalMotion( const mat4 particleMatrix, float distance, vec3 direction
   return globalMotion;
 }
 
-void main()
-{
-  float spawnTime = timings.x;
-  float lifeTime = timings.y;
-  float repeatTime = timings.z;
-  float seed = timings.w;
-  float age = mod( t - spawnTime, max( repeatTime, lifeTime ) );
-  float timeRatio = age / lifeTime;
+void main()`)
+  
+material.vertexShader = material.vertexShader.replace("#include <project_vertex>", `
 
-  float scale = interpolate( scales, timeRatio );
-  float opacity = interpolate( opacities, timeRatio );
-  vec3 color = vec3(
+vec4 globalMotion = vec4(0.);
+
+float spawnTime = timings.x;
+float lifeTime = timings.y;
+float repeatTime = timings.z;
+float age = mod( time - spawnTime, max( repeatTime, lifeTime ) );
+float timeRatio = age / lifeTime;
+float particleScale = interpolate( scales, timeRatio );
+
+{
+  float seed = timings.w;
+
+  float particleOpacity = interpolate( opacities.xyz, timeRatio );
+  vec3 particleColor = vec3(
     interpolate( unpackRGB( colors.x ), timeRatio ),
     interpolate( unpackRGB( colors.y ), timeRatio ),
     interpolate( unpackRGB( colors.z ), timeRatio )
@@ -645,17 +709,10 @@ void main()
   vec3 orbitalAxis = vec3(0.);
 #endif
 
-  vec4 globalMotion = calcGlobalMotion( particleMatrix, distance, direction, age, spawnTime, brownian, orbitalAxis );
-  vec4 mvPosition = modelViewMatrix * globalMotion;
-  vec4 screenPosition = projectionMatrix * mvPosition;
+  globalMotion = calcGlobalMotion( particleMatrix, distance, direction, age, spawnTime, brownian, orbitalAxis );
+  vec4 screenPosition = projectionMatrix * modelViewMatrix * globalMotion;
 
-  vParticleColor = vec4( color, opacity );
-  vFogDepth = -mvPosition.z;
-
-#if defined(USE_MESH)
-  vUv = vec2(0.);
-#endif
-
+  vParticleColor = vec4( particleColor, particleOpacity );
   vUvTransform = mat3( 1. );
 
 #if defined(USE_FRAMES_OR_ORIENTATION) || defined(USE_VELOCITY_SCALE)
@@ -672,7 +729,7 @@ void main()
 
   if (velocityscale.x > 0.) {
     orientation -= velocityOrientation;
-    scale *= clamp(velocityscale.x*100.*lenDelta*screenFuture.z, velocityscale.y, velocityscale.z );
+    particleScale *= clamp(velocityscale.x*100.*lenDelta*screenFuture.z, velocityscale.y, velocityscale.z );
   }
 #endif // USE_VELOCITY_SCALE
 
@@ -680,8 +737,8 @@ void main()
   float viewOrientation = atan( upView.x, upView.y );
   orientation -= viewOrientation * orientations.w;
 
-  vec3 frameInfoA = unpackFrame( frameinfo.x );
-  vec3 frameInfoB = unpackFrame( frameinfo.y );
+  vec3 frameInfoA = unpackFrame( colors.w );
+  vec3 frameInfoB = unpackFrame( opacities.w );
 
   float frameCols = frameInfoA.x;
   float frameRows = frameInfoA.y;
@@ -719,72 +776,55 @@ void main()
 
 #endif // USE_FRAMES_OR_ORIENTATION || VELOCITY_SCALE
 
+}
 
 #if defined(USE_RIBBON) || defined(USE_MESH)
-  gl_Position = projectionMatrix * modelViewMatrix * vec4( scale * position + globalMotion.xyz, 1. );
+  transformed = particleScale * transformed + globalMotion.xyz;
 #else
+  transformed += globalMotion.xyz;
+#endif
 
-#if defined(USE_PERSPECTIVE)
-  float perspective = 1. / -mvPosition.z;
-#else
-  float perspective = 1.;
-#endif // USE_PERSPECTIVE
+#include <project_vertex>
 
-  gl_PointSize = scale * particleSize * perspective;
-  gl_Position = screenPosition;
+if (particleScale <= 0. || timeRatio < 0. || timeRatio > 1. )
+{
+  gl_Position.w = -2.; // don't draw
+}`)
 
-#endif // USE_RIBBON || USE_MESH
+// style particles only
+material.vertexShader = material.vertexShader.replace("if ( isPerspective ) gl_PointSize *= ( scale / - mvPosition.z );", `
+if ( isPerspective ) gl_PointSize *= ( scale * particleScale / -mvPosition.z );`)
 
-
-  if (scale <= 0. || timeRatio < 0. || timeRatio > 1. )
-  {
-    gl_Position.w = -2.; // don't draw
-  }
-}`
-
-const THREE_PARTICLE_FRAGMENT = `
-precision highp float;
-precision highp int;
-
-uniform sampler2D map;
-uniform vec3 fogColor;
-uniform float fogNear;
-uniform float fogFar;
-uniform mat4 modelViewMatrix;
-uniform mat4 projectionMatrix;
-
+material.fragmentShader = material.fragmentShader.replace("void main()", `
 varying mat3 vUvTransform;
 varying vec4 vParticleColor;
-varying float vFogDepth;
 
-#if defined(USE_MESH)
-varying vec2 vUv;
+void main()`)
+
+// style particles only
+material.fragmentShader = material.fragmentShader.replace("#include <map_particle_fragment>", `
+#if defined( USE_MAP ) || defined( USE_ALPHAMAP )
+
+	vec2 uv = ( uvTransform * vUvTransform * vec3( gl_PointCoord.x, 1.0 - gl_PointCoord.y, 1 ) ).xy;
+
 #endif
 
-void main()
-{
-#if defined(USE_RIBBON) || defined(USE_MESH)
-  vec2 uv = ( vUvTransform * vec3( vUv, 1. ) ).xy;
-#else
-  vec2 uv = ( vUvTransform * vec3( gl_PointCoord.x, 1.0 - gl_PointCoord.y, 1. ) ).xy;
+#ifdef USE_MAP
+
+	vec4 mapTexel = texture2D( map, uv );
+  diffuseColor *= mapTexelToLinear( mapTexel );
+
 #endif
 
-  vec4 diffuseColor = vParticleColor;
-  vec4 mapTexel = texture2D( map, uv );
-  diffuseColor *= mapTexel;
+#ifdef USE_ALPHAMAP
 
-#if defined(ALPHATEST)
-  if ( diffuseColor.a < ALPHATEST ) {
-    discard;
-  }
-#endif
+	diffuseColor.a *= texture2D( alphaMap, uv ).g;
 
-  gl_FragColor = diffuseColor;
+#endif`)
 
-#if defined(USE_FOG)
-  float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );
+// style mesh or ribbon
+material.fragmentShader = material.fragmentShader.replace("#include <color_fragment>", `
+diffuseColor *= vParticleColor;
 
-  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );
-#endif
-}`
-
+#include <color_fragment>`)
+}
